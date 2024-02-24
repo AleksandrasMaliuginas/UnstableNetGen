@@ -1,6 +1,7 @@
 from network import Client
 from imageUtils import imageToBytes
 
+
 class SendingClient:
 
     def __init__(self, client: Client, server_ip: str, server_port: int) -> None:
@@ -20,4 +21,3 @@ class SendingClient:
     def send_image(self) -> None:
         bytesToSend = imageToBytes(0)
         self.client.send(bytesToSend)
-        
