@@ -1,13 +1,24 @@
-from network import Client
+from network import Client, ThroughputController
 from imageUtils import imageToBytes
+from generativeAI import Encoder
+from network.outputControl import TimeControlledOutput
 
 
 class SendingClient:
 
-    def __init__(self, client: Client, server_ip: str, server_port: int) -> None:
+    def __init__(
+        self,
+        client: Client,
+        server_ip: str,
+        server_port: int,
+        encoder: Encoder,
+    ):
         self.client = client
         self.server_ip = server_ip
         self.server_port = server_port
+
+        self.output: ThroughputController = TimeControlledOutput(self.client)
+        self.encoder = encoder
 
     def start(self) -> None:
         self.client.connect(self.server_ip, self.server_port)
@@ -19,5 +30,8 @@ class SendingClient:
         self.send_image()
 
     def send_image(self) -> None:
-        bytesToSend = imageToBytes(0)
-        self.client.send(bytesToSend)
+
+        imageBytes = imageToBytes(0)
+        encodedImageBytes = self.encoder.encode(imageBytes, None)
+
+        self.output.send(encodedImageBytes)

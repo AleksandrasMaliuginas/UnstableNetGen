@@ -1,4 +1,3 @@
-
 class Client:
 
     def connect(self, server_ip: str, server_port: str):
@@ -13,6 +12,7 @@ class Client:
         """Close open socket."""
         pass
 
+
 class Server:
 
     def start(self, server_ip: str, server_port: str):
@@ -25,4 +25,15 @@ class Server:
 
     def close(self):
         """Close open socket."""
+        pass
+
+
+class ThroughputController:
+
+    def send(self, data: bytes):
+        """Propagate data further."""
+        pass
+
+    def set_throughput(self, bytes_per_second: int):
+        """Set data flow rate."""
         pass
