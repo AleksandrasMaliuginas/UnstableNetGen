@@ -1,7 +1,10 @@
-import os, io
+import io
 from PIL import Image
 
-IMAGE_TO_PATH = {0: "../dataset/test-pepe.png"}
+IMAGE_TO_PATH = {
+    0: "../dataset/test-pepe.png",
+    1: "../dataset/test-1.png",
+}
 
 
 def imageKey_to_path(image_key: int) -> str:
