@@ -19,9 +19,7 @@ class TimeControlledOutput(ThroughputController, SendBoundary):
 
     def send(self, data: bytes) -> None:
         self.sendBarrier.reset(self.bytesPerSecond)
-
-        self.client.send(data)
-        # self.client.send(data, self)
+        self.client.send(data, self)
 
     def passOver(self, data: bytes, offset: int, next: Callable[[bytes], int]):
         endPosition = min(offset + self.BUFFER_SIZE, len(data))

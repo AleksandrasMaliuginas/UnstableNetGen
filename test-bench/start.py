@@ -5,8 +5,7 @@ from network.tcp import TCPServer, TCPClient
 from imageUtils import bytesToImage
 from generativeAI import NoopEncoder
 
-dgram_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-PORT = 1060
+PORT = 10060
 
 if __name__ == "__main__":
 

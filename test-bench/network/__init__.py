@@ -16,7 +16,7 @@ class Client:
         """Establish connection with a server."""
         pass
 
-    def send(self, data: bytes, sendBoundary: SendBoundary = SendBoundary()) -> None:
+    def send(self, data: bytes, sendBoundary: SendBoundary) -> None:
         """Send image to a server."""
         pass
 
