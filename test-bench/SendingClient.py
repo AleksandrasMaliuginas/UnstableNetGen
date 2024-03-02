@@ -1,14 +1,15 @@
 from network import Client, ThroughputController
 from imageUtils import imageToBytes
 from generativeAI import Encoder
-from network.outputControl import TimeControlledOutput
+from network.ControllerOutput import TimeControlledOutput
 
 
 DATA_RATE = {
-    "1 Gbit/s":     125_000_000,
-    "100 Mbit/s":    12_500_000,
-    "1 Mbit/s":         125_000,
+    "1 Gbit/s": 125_000_000,
+    "100 Mbit/s": 12_500_000,
+    "1 Mbit/s": 125_000,
 }
+
 
 class SendingClient:
 
