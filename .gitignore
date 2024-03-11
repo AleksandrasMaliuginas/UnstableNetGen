@@ -2,7 +2,7 @@
 .vscode
 
 weights/
-
+102flowers/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -10,7 +10,7 @@ __pycache__/
 
 # C extensions
 *.so
-
+*.png
 # Distribution / packaging
 .Python
 build/
