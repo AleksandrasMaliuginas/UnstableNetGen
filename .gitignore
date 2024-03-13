@@ -3,6 +3,7 @@
 
 weights/
 102flowers/
+logs/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -11,6 +12,8 @@ __pycache__/
 # C extensions
 *.so
 *.png
+*.jpg
+*.hfc
 # Distribution / packaging
 .Python
 build/
