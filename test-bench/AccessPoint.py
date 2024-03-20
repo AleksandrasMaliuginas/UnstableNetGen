@@ -1,44 +1,41 @@
 from PIL import Image
+from Receiver import ImageReceiver, ReceiverDuty
+from messaging import Message, MessageType
 from imageUtils import bytesToImage
-from threading import Thread
-from network.tcp import TCPServer
+
 
 class AccessPoint:
 
     def __init__(self, server_ip: str, server_port: int):
-        self.receiver = Receiver(server_ip, server_port)
-        # self.sender =
+        self.receiverDuty = ReceiverDuty("IMAGE_RECEIVER", server_ip, server_port, self.onIncomingMessage)
+        self.receiver = ImageReceiver(self.onImageReceived)
 
     def start(self):
-        self.receiver.start()
-        # self.sender.start()
+        self.receiverDuty.start()
+
+    def onImageReceived(self, imageBytes: bytes):
+        img: Image = bytesToImage(imageBytes)
+        img.show("Received image")
+
+    def onIncomingMessage(self, messageBuffer: bytes) -> bytes:
+
+        message = Message.decode(messageBuffer)
+
+        if message.msgType == MessageType.IMAGE_METADATA:
+            self.receiver.onImageMetadata(message)
+
+        elif message.msgType == MessageType.IMAGE_FRAGMENT:
+            self.receiver.onImageFragment(message)
+
+        return b"Message handled"
 
     def shutdownBarrier(self):
-        if self.receiver:
+        if self.receiverDuty:
             try:
-                self.receiver.join()
+                self.receiverDuty.join()
             finally:
                 self.close()
-    
-    def close(self):
-        if self.receiver:
-            self.receiver.close()
-
-
-class Receiver(Thread):
-    def __init__(self, server_ip: str, server_port: int):
-        Thread.__init__(self, name="IMAGE_RECEIVER")
-        self.server = TCPServer(self.onImageReceived)
-        self.server.start(server_ip, server_port)
-    
-    def run(self):
-        self.server.listen()
-
-    def onImageReceived(self, image_data: bytes):
-        img: Image = bytesToImage(image_data)
-        print("image received")
-        # img.show("Received image")
 
     def close(self):
-        if self.server:
-            self.server.close()
+        if self.receiverDuty:
+            self.receiverDuty.close()
