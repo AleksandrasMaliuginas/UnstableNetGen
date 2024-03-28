@@ -6,10 +6,10 @@ MAX_BUFF_SIZE = 1024 * 1024
 
 class UDPServer:
 
-    def __init__(self, requestHandler: Callable[[bytes], None]):
+    def __init__(self, requestHandler: Callable[[bytes], (None | bytes)]):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-        self.requestHandler = requestHandler
+        self.messageHandler = requestHandler
         self.closed = False
 
     def start(self, server_hostname: str, port: int):
@@ -21,9 +21,10 @@ class UDPServer:
         while not self.closed:
             message, address = self.server_socket.recvfrom(MAX_BUFF_SIZE)
 
-            response = self.requestHandler(message)
+            response = self.messageHandler(message)
 
-            self.server_socket.sendto(response, address)
+            if response:
+                self.server_socket.sendto(response, address)
 
     def close(self):
         self.closed = True

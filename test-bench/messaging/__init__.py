@@ -27,7 +27,7 @@ class Message:
         decodedMessage = Message(MessageType.INVALID)
 
         if msgTypeId == MessageType.PING.value:
-            pass
+            decodedMessage = Ping.decode(buffer=buffer[2:])
 
         elif msgTypeId == MessageType.IMAGE_METADATA.value:
             decodedMessage = ImageMetadata.decode(buffer=buffer[2:])
@@ -81,3 +81,31 @@ class ImageFragment(Message):
         sequenceNo, fragmentLength = unpack(">LL", buffer[:HEADER_SIZE])
 
         return ImageFragment(sequenceNo, fragmentLength, buffer[HEADER_SIZE:])
+
+
+class Ping(Message):
+
+    REPLY = 0
+    REQUEST = 1
+
+    padding_bytes = 4 + 3 * 16
+
+    def __init__(self, seq: int, isReply: bool = False):
+        super().__init__(MessageType.PING)
+        self.type = Ping.REPLY if isReply else Ping.REQUEST
+        self.seq = seq
+
+    def __str__(self):
+        return super().__str__() + f" {self.type} seq={self.seq}"
+
+    def encode(self):
+        return super().encode() + pack(">HQ", self.type, self.seq) + bytes(Ping.padding_bytes)
+
+    @staticmethod
+    def decode(buffer: bytes):
+        type, seq = unpack(f">HQ{Ping.padding_bytes}x", buffer)
+
+        if type == Ping.REPLY:
+            return Ping(seq, True)
+        else:
+            return Ping(seq, False)
