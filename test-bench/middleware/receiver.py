@@ -1,6 +1,4 @@
 from typing import Callable
-from threading import Thread
-from network.udp import UDPServer
 from messaging import ImageFragment, ImageMetadata
 
 
@@ -24,20 +22,3 @@ class ImageReceiver:
 
         if self.actingImageMetadata.imageLength == len(self.bytesReceived):
             self.imageHandler(self.bytesReceived)
-
-
-class ReceiverDuty(Thread):
-    def __init__(self, dutyName: str, server_ip: str, server_port: int, messageHandler: Callable[[bytes], None]):
-        Thread.__init__(self, name=dutyName)
-
-        self.server_ip = server_ip
-        self.server_port = server_port
-        self.server = UDPServer(messageHandler)
-
-    def run(self):
-        self.server.start(self.server_ip, self.server_port)
-        self.server.listen()
-
-    def close(self):
-        if self.server:
-            self.server.close()

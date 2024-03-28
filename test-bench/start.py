@@ -1,9 +1,7 @@
-import socket, sys
-from AccessPoint import AccessPoint
+import sys
+from middleware.AccessPoint import AccessPoint
 from SendingClient import SendingClient
-from network.tcp import TCPServer, TCPClient
-from imageUtils import bytesToImage
-from generativeAI import NoopEncoder
+from compression import NoopEncoder
 
 PORT = 10060
 main_instance = None
@@ -23,7 +21,7 @@ def main():
         server_ip = sys.argv[2]
 
         main_instance = SendingClient(
-            client=TCPClient(),
+            client=None,
             server_ip=server_ip,
             server_port=PORT,
             encoder=NoopEncoder(),
