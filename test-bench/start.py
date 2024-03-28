@@ -21,7 +21,6 @@ def main():
         server_ip = sys.argv[2]
 
         main_instance = SendingClient(
-            client=None,
             server_ip=server_ip,
             server_port=PORT,
             encoder=NoopEncoder(),

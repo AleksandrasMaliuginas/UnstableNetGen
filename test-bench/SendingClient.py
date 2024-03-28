@@ -1,27 +1,20 @@
-from network import Client
 from imageUtils import imageToBytes
-from generativeAI import Encoder
+from compression import Encoder
 from network.udp import UDPClient
 from messaging import ImageFragment, ImageMetadata
 
 
 class SendingClient:
 
-    def __init__(
-        self,
-        client: Client,
-        server_ip: str,
-        server_port: int,
-        encoder: Encoder,
-    ):
-        # self.client = client
-        self.client = UDPClient(server_ip, server_port)
+    def __init__(self, server_ip: str, server_port: int, encoder: Encoder):
+
+        self.client = UDPClient(server_ip, server_port, timeoutSeconds=4)
         self.server_ip = server_ip
         self.server_port = server_port
 
         self.encoder = encoder
 
-        self.fragmentSize = 16 * 1024
+        self.fragmentSize = 8 * 1024
 
     def start(self) -> None:
         self.doWork()
@@ -62,7 +55,7 @@ class SendingClient:
                 sequenceNo=sequenceNo, fragmentLength=len(segmentBody), fragmentData=segmentBody
             )
 
-            print("Send: ", imageFragment)
+            # print("Send: ", imageFragment)
             self.client.send(imageFragment.encode())
 
             offset += fragmentLength
