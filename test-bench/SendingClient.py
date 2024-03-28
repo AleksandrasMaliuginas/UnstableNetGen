@@ -1,36 +1,22 @@
-from network import Client, ThroughputController
 from imageUtils import imageToBytes
-from generativeAI import Encoder
-from network.ControllerOutput import TimeControlledOutput
-
-
-DATA_RATE = {
-    "1 Gbit/s": 125_000_000,
-    "100 Mbit/s": 12_500_000,
-    "1 Mbit/s": 125_000,
-}
+from compression import Encoder
+from network.udp import UDPClient
+from messaging import ImageFragment, ImageMetadata
 
 
 class SendingClient:
 
-    def __init__(
-        self,
-        client: Client,
-        server_ip: str,
-        server_port: int,
-        encoder: Encoder,
-    ):
-        self.client = client
+    def __init__(self, server_ip: str, server_port: int, encoder: Encoder):
+
+        self.client = UDPClient(server_ip, server_port, timeoutSeconds=4)
         self.server_ip = server_ip
         self.server_port = server_port
 
-        self.output: ThroughputController = TimeControlledOutput(self.client)
         self.encoder = encoder
 
-    def start(self) -> None:
-        self.client.connect(self.server_ip, self.server_port)
-        self.output.dataRate(DATA_RATE["1 Gbit/s"])
+        self.fragmentSize = 8 * 1024
 
+    def start(self) -> None:
         self.doWork()
 
     def doWork(self):
@@ -42,4 +28,35 @@ class SendingClient:
         imageBytes = imageToBytes(0)
         encodedImageBytes = self.encoder.encode(imageBytes, None)
 
-        self.output.send(encodedImageBytes)
+        # Send image metadata
+        metadata = self.imageMetadata(encodedImageBytes)
+        print("Send: ", metadata)
+        self.client.send(metadata.encode())
+
+        # Send fragmented image
+        self.sendImageFragments(imageMetadata=metadata, imageBytes=encodedImageBytes)
+
+    def imageMetadata(self, imageBytes: bytes):
+        return ImageMetadata(imageLength=len(imageBytes), fragmentLength=self.fragmentSize)
+
+    def sendImageFragments(self, imageMetadata: ImageMetadata, imageBytes: bytes):
+        totalLength = imageMetadata.imageLength
+        fragmentLength = imageMetadata.fragmentLength
+
+        offset = 0
+        sequenceNo = 0
+
+        while offset < totalLength:
+            endPosition = min(offset + fragmentLength, totalLength)
+
+            segmentBody = imageBytes[offset:endPosition]
+
+            imageFragment = ImageFragment(
+                sequenceNo=sequenceNo, fragmentLength=len(segmentBody), fragmentData=segmentBody
+            )
+
+            # print("Send: ", imageFragment)
+            self.client.send(imageFragment.encode())
+
+            offset += fragmentLength
+            sequenceNo += 1
