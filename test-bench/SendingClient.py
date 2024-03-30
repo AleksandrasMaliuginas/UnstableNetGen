@@ -1,7 +1,9 @@
-from imageUtils import imageToBytes
+from utils.image import imageToBytes
 from compression import Encoder
 from network.udp import UDPClient
 from messaging import ImageFragment, ImageMetadata
+from measurements import ConnectionObserver
+from utils.agent import AgentRunner
 
 
 class SendingClient:
@@ -14,19 +16,25 @@ class SendingClient:
 
         self.encoder = encoder
 
+        self.connectionObserver = ConnectionObserver(self.client)
+        self.metricsRunner = AgentRunner("METRICS_OBSERVER", 5, self.connectionObserver)
+
         self.fragmentSize = 8 * 1024
 
     def start(self) -> None:
+        self.metricsRunner.start()
         self.doWork()
 
     def doWork(self):
-        # Any sort of behavior of Sending Client
+        self.connectionObserver.awaitInitialMeasurements()
         self.send_image()
+        self.close()
 
     def send_image(self) -> None:
 
         imageBytes = imageToBytes(0)
-        encodedImageBytes = self.encoder.encode(imageBytes, None)
+        connectionQuality = self.connectionObserver.getConnectionQuality()
+        encodedImageBytes = self.encoder.encode(imageBytes, connectionQuality)
 
         # Send image metadata
         metadata = self.imageMetadata(encodedImageBytes)
@@ -60,3 +68,17 @@ class SendingClient:
 
             offset += fragmentLength
             sequenceNo += 1
+
+    def shutdownBarrier(self):
+        if self.metricsRunner:
+            try:
+                self.metricsRunner.join()
+            finally:
+                self.close()
+
+    def close(self):
+        if self.metricsRunner:
+            self.metricsRunner.close()
+
+        if self.client:
+            self.client.close()

@@ -51,3 +51,8 @@ class UDPClient:
         except socket.timeout:
             print("Request timed out.")
             return False
+    
+    def close(self):
+        if self.client_socket:
+            self.client_socket.close()
+        self.client_socket = None
