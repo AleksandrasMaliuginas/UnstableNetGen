@@ -11,31 +11,39 @@ class MessageType(Enum):
 
 class Message:
 
-    def __init__(self, msgType: MessageType):
-        self.msgType = msgType
+    def __init__(self, msgType: MessageType | int):
+        if isinstance(msgType, MessageType):
+            self.msgType = msgType
+            self.msgTypeId = msgType.value
+        else:
+            self.msgType = MessageType.INVALID
+            self.msgTypeId = msgType
 
     def __str__(self):
-        return f"Message msgType={self.msgType.name}"
+        return (
+            f"Message msgTypeId={self.msgTypeId}"
+            if self.msgType == MessageType.INVALID
+            else f"Message msgType={self.msgType.name}"
+        )
 
     def encode(self):
-        return pack(">H", self.msgType.value)
+        return pack(">H", self.msgTypeId)
 
     @staticmethod
     def decode(buffer: bytes):
 
-        msgTypeId = unpack(">H", buffer[:2])[0]
-        decodedMessage = Message(MessageType.INVALID)
+        msgTypeId: int = unpack(">H", buffer[:2])[0]
 
         if msgTypeId == MessageType.PING.value:
-            decodedMessage = Ping.decode(buffer=buffer[2:])
+            return Ping.decode(buffer=buffer[2:])
 
-        elif msgTypeId == MessageType.IMAGE_METADATA.value:
-            decodedMessage = ImageMetadata.decode(buffer=buffer[2:])
+        if msgTypeId == MessageType.IMAGE_METADATA.value:
+            return ImageMetadata.decode(buffer=buffer[2:])
 
-        elif msgTypeId == MessageType.IMAGE_FRAGMENT.value:
-            decodedMessage = ImageFragment.decode(buffer=buffer[2:])
+        if msgTypeId == MessageType.IMAGE_FRAGMENT.value:
+            return ImageFragment.decode(buffer=buffer[2:])
 
-        return decodedMessage
+        return Message(msgTypeId)
 
 
 class ImageMetadata(Message):

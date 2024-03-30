@@ -25,6 +25,7 @@ class AccessPoint:
         pingReply = Ping(pingMessage.seq, isReply=True)
         return pingReply.encode()
 
+    # Message router
     def onIncomingMessage(self, messageBuffer: bytes):
 
         message = Message.decode(messageBuffer)
@@ -37,6 +38,8 @@ class AccessPoint:
 
         elif message.msgType == MessageType.PING:
             return self.onPingMessage(message)
+        
+        print("Unrecognized message:", message)
 
     def shutdownBarrier(self):
         if self.receiverDuty:
