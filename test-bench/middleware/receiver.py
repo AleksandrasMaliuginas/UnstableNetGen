@@ -5,18 +5,20 @@ from messaging import ImageFragment, ImageMetadata
 class ImageReceiver:
     def __init__(self, imageHandler: Callable[[bytes], None]):
         self.imageHandler = imageHandler
+        self.reset()
 
-        self.actingImageMetadata = None
+    def reset(self):
         self.bytesReceived = bytes()
+        self.actingImageMetadata = None
 
     def onImageMetadata(self, imageMetadata: ImageMetadata):
         print(imageMetadata)
-
-        self.bytesReceived = bytes()
         self.actingImageMetadata = imageMetadata
 
     def onImageFragment(self, imageFragment: ImageFragment):
-        print(imageFragment)
+
+        if not self.actingImageMetadata:
+            return
 
         self.bytesReceived += imageFragment.fragmentData
 
