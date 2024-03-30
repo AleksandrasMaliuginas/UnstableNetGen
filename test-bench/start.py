@@ -1,34 +1,42 @@
-import socket, sys
-from PIL import Image
+import sys
+from middleware.AccessPoint import AccessPoint
 from SendingClient import SendingClient
-from network.tcp import TCPServer, TCPClient
-from imageUtils import bytesToImage
-from generativeAI import NoopEncoder
+from compression import NoopEncoder
 
 PORT = 10060
+main_instance = None
 
-if __name__ == "__main__":
+
+def main():
 
     if 2 <= len(sys.argv) <= 3 and sys.argv[1] == "server":
         server_ip = sys.argv[2] if len(sys.argv) > 2 else ""
 
-        def image_handler(image_data: bytes):
-            img: Image = bytesToImage(image_data)
-            img.show("Received image")
-
-        server = TCPServer(image_handler)
-        server.start(server_ip, PORT)
-        server.listen()
+        main_instance = AccessPoint(server_ip=server_ip, server_port=PORT)
+        main_instance.start()
+        print("Access point ready. Accepting connections...")
+        main_instance.shutdownBarrier()
 
     elif len(sys.argv) == 3 and sys.argv[1] == "client":
         server_ip = sys.argv[2]
 
-        SendingClient(
-            client=TCPClient(),
+        main_instance = SendingClient(
             server_ip=server_ip,
             server_port=PORT,
             encoder=NoopEncoder(),
-        ).start()
+        )
+        main_instance.start()
 
     else:
         print("Usage: <{client|server}> <server_ip>")
+
+
+if __name__ == "__main__":
+
+    try:
+        main()
+    finally:
+        print("\nClosing...")
+        if main_instance:
+            main_instance.close()
+        print("Everything closed.")
