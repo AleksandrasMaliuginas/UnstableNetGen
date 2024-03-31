@@ -1,6 +1,6 @@
 import sys
-from middleware.AccessPoint import AccessPoint
-from SendingClient import SendingClient
+from infrastructure.middle import AccessPoint
+from infrastructure.sender import SendingClient
 from compression import NoopEncoder
 
 PORT = 10060
@@ -14,18 +14,16 @@ def main():
 
         main_instance = AccessPoint(server_ip=server_ip, server_port=PORT)
         main_instance.start()
+
         print("Access point ready. Accepting connections...")
         main_instance.shutdownBarrier()
 
     elif len(sys.argv) == 3 and sys.argv[1] == "client":
         server_ip = sys.argv[2]
 
-        main_instance = SendingClient(
-            server_ip=server_ip,
-            server_port=PORT,
-            encoder=NoopEncoder(),
-        )
+        main_instance = SendingClient(server_ip=server_ip, server_port=PORT, encoder=NoopEncoder())
         main_instance.start()
+        main_instance.shutdownBarrier()
 
     else:
         print("Usage: <{client|server}> <server_ip>")

@@ -1,40 +1,22 @@
-from imageUtils import imageToBytes
-from compression import Encoder
 from network.udp import UDPClient
 from messaging import ImageFragment, ImageMetadata
 
 
-class SendingClient:
-
-    def __init__(self, server_ip: str, server_port: int, encoder: Encoder):
-
-        self.client = UDPClient(server_ip, server_port, timeoutSeconds=4)
-        self.server_ip = server_ip
-        self.server_port = server_port
-
-        self.encoder = encoder
+class ImageSender:
+    def __init__(self, client: UDPClient):
+        self.client = client
 
         self.fragmentSize = 8 * 1024
 
-    def start(self) -> None:
-        self.doWork()
-
-    def doWork(self):
-        # Any sort of behavior of Sending Client
-        self.send_image()
-
-    def send_image(self) -> None:
-
-        imageBytes = imageToBytes(0)
-        encodedImageBytes = self.encoder.encode(imageBytes, None)
+    def sendImage(self, imageBytes: bytes) -> None:
 
         # Send image metadata
-        metadata = self.imageMetadata(encodedImageBytes)
-        print("Send: ", metadata)
+        metadata = self.imageMetadata(imageBytes)
+        print("Image metadata:", metadata)
         self.client.send(metadata.encode())
 
         # Send fragmented image
-        self.sendImageFragments(imageMetadata=metadata, imageBytes=encodedImageBytes)
+        self.sendImageFragments(imageMetadata=metadata, imageBytes=imageBytes)
 
     def imageMetadata(self, imageBytes: bytes):
         return ImageMetadata(imageLength=len(imageBytes), fragmentLength=self.fragmentSize)

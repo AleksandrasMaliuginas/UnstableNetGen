@@ -1,6 +1,8 @@
+from measurements import ConnectionQuality
+
 class Encoder:
 
-    def encode(self, image: bytes, connection_quality_context):
+    def encode(self, image: bytes, connectionQuality: ConnectionQuality):
         """GenAI encoder."""
         raise Exception("Not implemented.")
 
