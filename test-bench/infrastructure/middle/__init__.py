@@ -1,9 +1,9 @@
 from PIL import Image
-from middleware.receiver import ImageReceiver
-from middleware.receiverDuty import ReceiverDuty
+from infrastructure.middle.receiver import ImageReceiver
+from infrastructure.middle.receiverDuty import ReceiverDuty
 from messaging import Message, MessageType, Ping
-from network.artificialControl import PacketController
-from imageUtils import bytesToImage
+from network.artificialControl import PacketController, RandomPacketDrop
+from utils.image import bytesToImage
 
 
 class AccessPoint:
@@ -38,7 +38,7 @@ class AccessPoint:
 
         elif message.msgType == MessageType.PING:
             return self.onPingMessage(message)
-        
+
         print("Unrecognized message:", message)
 
     def shutdownBarrier(self):

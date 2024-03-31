@@ -1,6 +1,6 @@
 from network.udp import UDPClient
 from messaging import ImageFragment, ImageMetadata
-from measurements import ConnectionQuality
+
 
 class ImageSender:
     def __init__(self, client: UDPClient):

@@ -2,7 +2,7 @@ from compression import Encoder
 from network.udp import UDPClient
 from measurements import ConnectionObserver
 from utils.agent import AgentRunner
-from imageSend import ImageSender
+from infrastructure.sender.imageSend import ImageSender
 from utils.image import imageToBytes
 
 

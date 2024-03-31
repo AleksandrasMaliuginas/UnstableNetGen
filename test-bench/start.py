@@ -1,6 +1,6 @@
 import sys
-from middleware.AccessPoint import AccessPoint
-from SendingClient import SendingClient
+from infrastructure.middle import AccessPoint
+from infrastructure.sender import SendingClient
 from compression import NoopEncoder
 
 PORT = 10060
