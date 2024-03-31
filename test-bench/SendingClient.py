@@ -1,9 +1,9 @@
-from utils.image import imageToBytes
 from compression import Encoder
 from network.udp import UDPClient
-from messaging import ImageFragment, ImageMetadata
 from measurements import ConnectionObserver
 from utils.agent import AgentRunner
+from imageSend import ImageSender
+from utils.image import imageToBytes
 
 
 class SendingClient:
@@ -11,15 +11,13 @@ class SendingClient:
     def __init__(self, server_ip: str, server_port: int, encoder: Encoder):
 
         self.client = UDPClient(server_ip, server_port, timeoutSeconds=4)
-        self.server_ip = server_ip
-        self.server_port = server_port
+
+        self.imageSender = ImageSender(self.client)
 
         self.encoder = encoder
 
         self.connectionObserver = ConnectionObserver(self.client)
         self.metricsRunner = AgentRunner("METRICS_OBSERVER", 5, self.connectionObserver)
-
-        self.fragmentSize = 8 * 1024
 
     def start(self) -> None:
         self.metricsRunner.start()
@@ -27,47 +25,19 @@ class SendingClient:
 
     def doWork(self):
         self.connectionObserver.awaitInitialMeasurements()
-        self.send_image()
+
+        self.sendImage(0)
+
         self.close()
 
-    def send_image(self) -> None:
+    def sendImage(self, imageKey: int):
+        imageBytes = imageToBytes(imageKey)
 
-        imageBytes = imageToBytes(0)
         connectionQuality = self.connectionObserver.getConnectionQuality()
-        encodedImageBytes = self.encoder.encode(imageBytes, connectionQuality)
 
-        # Send image metadata
-        metadata = self.imageMetadata(encodedImageBytes)
-        print("Send: ", metadata)
-        self.client.send(metadata.encode())
+        encodedImage = self.encoder.encode(imageBytes, connectionQuality)
 
-        # Send fragmented image
-        self.sendImageFragments(imageMetadata=metadata, imageBytes=encodedImageBytes)
-
-    def imageMetadata(self, imageBytes: bytes):
-        return ImageMetadata(imageLength=len(imageBytes), fragmentLength=self.fragmentSize)
-
-    def sendImageFragments(self, imageMetadata: ImageMetadata, imageBytes: bytes):
-        totalLength = imageMetadata.imageLength
-        fragmentLength = imageMetadata.fragmentLength
-
-        offset = 0
-        sequenceNo = 0
-
-        while offset < totalLength:
-            endPosition = min(offset + fragmentLength, totalLength)
-
-            segmentBody = imageBytes[offset:endPosition]
-
-            imageFragment = ImageFragment(
-                sequenceNo=sequenceNo, fragmentLength=len(segmentBody), fragmentData=segmentBody
-            )
-
-            # print("Send: ", imageFragment)
-            self.client.send(imageFragment.encode())
-
-            offset += fragmentLength
-            sequenceNo += 1
+        self.imageSender.sendImage(encodedImage)
 
     def shutdownBarrier(self):
         if self.metricsRunner:

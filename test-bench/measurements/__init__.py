@@ -60,7 +60,7 @@ class ConnectionObserver(Agent):
         start = time.time()
         endAwaitTime = start + timeoutSec
 
-        while self.connectionQuality == None and endAwaitTime <= time.time():
+        while self.connectionQuality == None and time.time() <= endAwaitTime:
             time.sleep(0.5)
 
     # TODO: Not thread safe
