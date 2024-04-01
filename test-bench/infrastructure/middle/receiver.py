@@ -13,6 +13,7 @@ class ImageReceiver:
 
     def onImageMetadata(self, imageMetadata: ImageMetadata):
         print(imageMetadata)
+        self.reset()
         self.actingImageMetadata = imageMetadata
 
     def onImageFragment(self, imageFragment: ImageFragment):
