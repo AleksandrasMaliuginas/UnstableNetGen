@@ -1,3 +1,4 @@
+numpy
 absl-py==0.9.0
 autograd==1.3
 cachetools==4.1.1
@@ -16,7 +17,6 @@ kiwisolver==1.2.0
 Markdown==3.2.2
 matplotlib==3.3.0
 networkx==2.4
-numpy
 oauthlib==3.1.0
 Pillow==8.3.2
 protobuf==3.12.4

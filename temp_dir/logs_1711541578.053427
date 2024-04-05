@@ -1,0 +1,7 @@
+13:12:58 INFO - logger_setup: /home/henrik/UnstableNet/UnstableNetGen/compress.py
+13:13:01 INFO - load_model: Loading model ...
+13:13:01 INFO - load_model: Estimated model size (under fp32): 593.146 MB
+13:13:01 INFO - load_model: Model init 3.240s
+13:13:01 INFO - prepare_model: Model loaded from disk.
+13:13:01 INFO - prepare_model: Building hyperprior probability tables...
+13:13:05 INFO - prepare_model: All tables built.
