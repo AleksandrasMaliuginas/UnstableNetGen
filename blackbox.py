@@ -15,7 +15,7 @@ class HIFIC:
         self.img_path=img_path
         self.output_path=output_path
         self.logs=log_path
-        self.tile_size = 1900
+        self.tile_size = 2048
         if compression_level>0 and compression_level<3:
             self.weights=compression_level
         else: self.weights=1
@@ -41,9 +41,12 @@ class HIFIC:
             if os.path.isfile(file_path) and any(filename.lower().endswith(ext) for ext in ['.jpg', '.png']):
                 with Image.open(file_path) as img:
                     width, height = img.size
-                    if width*height>3700000:
+                    if width*height>4000000:
+                        if width<self.tile_size or height<self.tile_size:
+                            self.tile_size=min(width,height)
                         resolutions[split_images] = img.size
                         Image_splitter.split_image(file_path, self.prepared, self.tile_size, split_images)
+                        self.tile_size=2048
                         split_images+=1
                     else:
                         shutil.copy(file_path, self.prepared)
@@ -81,12 +84,10 @@ class HIFIC:
         split_imgs=[]
         for root, dirs, files in os.walk(out_path):
             for file_name in files:
-                if file_name.startswith(tile_path):
+                if "_0_0" in file_name:#file_name.startswith(tile_path):
                     file_count+=1
-                    tile_path = f"tile{file_count}_0_0"
-                    split_imgs.append(file_name)
 
-        for i in range(len(split_imgs)):
+        for i in range(file_count):
             img_gatherer=[]
             horizontal=0
             vertical=0
@@ -105,8 +106,28 @@ class HIFIC:
                 if horizontal_flag>0:
                     horizontal+=1
             resolution=resolutions[i]
+            width, height=resolution
+            tempimg=Image.open(img_gatherer[0])
+            tilesize, notused=tempimg.size
             img_name=os.path.join(out_path, f"img{i}.png")
-            Image_splitter.merge_images(tiles=img_gatherer, num_tiles_horizontal=horizontal-1, num_tiles_vertical=vertical, output_path=img_name, final_res=resolution)
+            if (vertical+1)*tilesize==height:
+                vertical+=1
+            #elif vertical*tilesize>height:
+            #    vertical-=1
+            if horizontal*tilesize>width:
+                horizontal-=1
+            Image_splitter.merge_images(tiles=img_gatherer, num_tiles_horizontal=horizontal, num_tiles_vertical=vertical, output_path=img_name, final_res=resolution)
+        # List all files in the folder
+        files = os.listdir(self.output_path)
+        for file_name in files:
+            if file_name.startswith("tile"):
+                file_path = os.path.join(self.output_path, file_name)
+                os.remove(file_path)
+        files = os.listdir(out_path)
+        for file_name in files:
+            if file_name.startswith("tile"):
+                file_path = os.path.join(out_path, file_name)
+                os.remove(file_path)
 #print(os.system("nvidia-smi")) #I dont know why but sometimes its necessary to run this.
 #A new objects needs to be instantiated each time we need a different compression model, which takes a few seconds, so should be limited.
 #Because of how big the models are, system memory cannot fit more than one (from my tests)

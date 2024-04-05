@@ -46,7 +46,7 @@ def split_image(image_path,out_path='', tile_size=1900, split_number=0):
             right+=100
         lower=num_tiles_vertical*tile_size
         tile = image.crop((left, upper, right, lower))
-        tile_path = f"tile{split_number}_{num_tiles_horizontal}_{num_tiles_vertical-1}.jpg"
+        tile_path = f"tile{split_number}_{num_tiles_horizontal}_0.jpg"
         tile_path = os.path.join(out_path, tile_path)
         tile.save(tile_path)
         tiles.append(tile_path)
@@ -67,11 +67,13 @@ def merge_images(tiles, num_tiles_horizontal, num_tiles_vertical, output_path, f
                 break
             tile = Image.open(tiles[index])
             new_image.paste(tile, (i * tile_size, j * tile_size))
-    index+=1
-    tile = Image.open(tiles[index])
-    new_image.paste(tile, (0, num_tiles_vertical*tile_size))
-    index+=1
-    tile = Image.open(tiles[index])
-    new_image.paste(tile, (num_tiles_horizontal*tile_size, 0))
+    if height>num_tiles_vertical*tile_size:
+        index+=1
+        tile = Image.open(tiles[index])
+        new_image.paste(tile, (0, num_tiles_vertical*tile_size))
+    if width>num_tiles_horizontal*tile_size:
+        index+=1
+        tile = Image.open(tiles[index])
+        new_image.paste(tile, (num_tiles_horizontal*tile_size, 0))
     new_image.save(output_path)
     print(f"Image reassembled and saved at {output_path}")
