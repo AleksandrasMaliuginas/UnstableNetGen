@@ -15,7 +15,7 @@ class HIFIC:
         self.img_path=img_path
         self.output_path=output_path
         self.logs=log_path
-        self.tile_size = 2048
+        self.tile_size = 2100
         if compression_level>0 and compression_level<3:
             self.weights=compression_level
         else: self.weights=1
@@ -34,6 +34,7 @@ class HIFIC:
         
     def compress(self):
         #Checks every given image if it is the correct format and the size of the image, if its too large it iwll be split.
+        out_of_memory=4410000
         resolutions={}
         split_images=0
         for filename in os.listdir(self.img_path):
@@ -41,12 +42,24 @@ class HIFIC:
             if os.path.isfile(file_path) and any(filename.lower().endswith(ext) for ext in ['.jpg', '.png']):
                 with Image.open(file_path) as img:
                     width, height = img.size
-                    if width*height>4000000:
+                    if width*height>out_of_memory:
+                        tilesize=self.tile_size
                         if width<self.tile_size or height<self.tile_size:
-                            self.tile_size=min(width,height)
+                            tilesize=min(width,height)
+
+                        #loop that checks if the remainder segments will overflow memory, and if so it lowers
+                        #filter size.
+                        bot_w=width
+                        rig_h=height
+                        bot_h=height- (height // tilesize)*tilesize
+                        rig_w=width - (width // tilesize)*tilesize
+                        
+                        while bot_w*bot_h>out_of_memory or rig_w*rig_h>out_of_memory:
+                            tilesize-=50
+                            bot_h=height-(height // tilesize)*tilesize
+                            rig_w=width - (width // tilesize)*tilesize
                         resolutions[split_images] = img.size
-                        Image_splitter.split_image(file_path, self.prepared, self.tile_size, split_images)
-                        self.tile_size=2048
+                        Image_splitter.split_image(file_path, self.prepared, tilesize, split_images)
                         split_images+=1
                     else:
                         shutil.copy(file_path, self.prepared)
@@ -120,7 +133,7 @@ class HIFIC:
         # List all files in the folder
         files = os.listdir(self.output_path)
         for file_name in files:
-            if file_name.startswith("tile"):
+            if file_name.endswith(".hfc"):
                 file_path = os.path.join(self.output_path, file_name)
                 os.remove(file_path)
         files = os.listdir(out_path)
