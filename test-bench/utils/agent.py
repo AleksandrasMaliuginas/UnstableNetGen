@@ -14,10 +14,10 @@ class Agent:
 
 
 class AgentRunner(Thread):
-    def __init__(self, agentName: str, periodicitySec: int, delegate: Agent):
+    def __init__(self, agentName: str, periodicitySec: int, agent: Agent):
         Thread.__init__(self, name=agentName)
 
-        self.delegate = delegate
+        self.delegate = agent
         self.periodicitySec = periodicitySec
 
         self.started = False

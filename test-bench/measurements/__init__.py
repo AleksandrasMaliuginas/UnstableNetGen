@@ -30,7 +30,6 @@ class ConnectionQuality:
             + f"replyPacketCount={self.replyPacketCount}; "
             + f"bytesReceived={self.bytesReceived}; "
             + f"totalRoundTripTime={self.totalRoundTripTime}; "
-
             + f"packetDropPercentage={self.packetDropPercentage()}; "
             + f"dataTransferRateBytesPerSecond={self.dataTransferRateBytesPerSecond()}; "
             + f"roundTripTimeMs={self.roundTripTimeMs()}; "
@@ -44,9 +43,11 @@ class ConnectionObserver(Agent):
 
     PING_MESSAGE_SIZE_BYTES = 64
 
-    def __init__(self, client: UDPClient):
+    def __init__(self, client: UDPClient, measurePeriodSec: int):
 
         self.client = client
+        self.measurePeriodSec = measurePeriodSec
+        self.lastMeasurement = -1
         self.pingPeriod = 0.5
         self.pingRepetitions = 10
 
@@ -54,8 +55,12 @@ class ConnectionObserver(Agent):
         self.records = {}
 
     def doWork(self):
-        self.measureConnectionQuality()
-    
+        if self.isTimeToMeasure():
+            self.measureConnectionQuality()
+
+    def isTimeToMeasure(self) -> bool:
+        return time.time() > self.lastMeasurement + self.measurePeriodSec
+
     def awaitInitialMeasurements(self, timeoutSec: int = 10):
         start = time.time()
         endAwaitTime = start + timeoutSec
