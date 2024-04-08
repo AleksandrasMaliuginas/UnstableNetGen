@@ -16,8 +16,8 @@ class SendingClient:
 
         self.encoder = encoder
 
-        self.connectionObserver = ConnectionObserver(self.client)
-        self.metricsRunner = AgentRunner("METRICS_OBSERVER", 5, self.connectionObserver)
+        self.connectionObserver = ConnectionObserver(self.client, measurePeriodSec=2)
+        self.metricsRunner = AgentRunner("METRICS_OBSERVER", periodicitySec=0.5, agent=self.connectionObserver)
 
     def start(self) -> None:
         self.metricsRunner.start()
