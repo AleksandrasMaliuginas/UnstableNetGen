@@ -1,4 +1,4 @@
-from measurements import ConnectionQuality
+from measurements.connection import ConnectionQuality
 
 class Encoder:
 

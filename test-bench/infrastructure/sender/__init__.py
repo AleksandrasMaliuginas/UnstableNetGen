@@ -1,9 +1,26 @@
+import time
+import logging
+from enum import Enum
 from compression import Encoder
 from network.udp import UDPClient
-from measurements import ConnectionObserver
+from measurements.connection import ConnectionObserver
 from utils.agent import AgentRunner
 from infrastructure.sender.imageSend import ImageSender
 from utils.image import imageToBytes
+from measurements import AppCounters
+
+log = logging.getLogger()
+
+
+class Counters(Enum):
+    ImageId = 0
+    ImageSizeBytes = 1
+    CompressionDurationSec = 3
+    CompressedImageSizeBytes = 4
+    ImageSendingTime = 5
+
+
+appCounters = AppCounters(Counters)
 
 
 class SendingClient:
@@ -26,18 +43,32 @@ class SendingClient:
     def doWork(self):
         self.connectionObserver.awaitInitialMeasurements()
 
-        self.sendImage(0)
+        imagesToSend = [1]
+        for imageKey in imagesToSend:
+            self.sendImage(imageKey)
 
         self.close()
 
     def sendImage(self, imageKey: int):
+
         imageBytes = imageToBytes(imageKey)
+
+        appCounters.report(Counters.ImageId, imageKey)
+        appCounters.report(Counters.ImageSizeBytes, len(imageBytes))
 
         connectionQuality = self.connectionObserver.getConnectionQuality()
 
+        startCompression = time.time()
         encodedImage = self.encoder.encode(imageBytes, connectionQuality)
 
+        appCounters.reportDuration(Counters.CompressionDurationSec, startCompression)
+        appCounters.report(Counters.CompressedImageSizeBytes, len(encodedImage))
+
+        startImageSend = time.time()
         self.imageSender.sendImage(encodedImage)
+
+        appCounters.reportDuration(Counters.ImageSendingTime, startImageSend)
+        log.info(appCounters)
 
     def shutdownBarrier(self):
         if self.metricsRunner:
