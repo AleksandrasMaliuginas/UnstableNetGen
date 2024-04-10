@@ -16,20 +16,15 @@ class HIFIC:
         self.output_path=output_path
         self.logs=log_path
         self.tile_size = 2100
-        if compression_level>=0 and compression_level<=3:
-            self.weights=compression_level
-        else: self.weights=1
+        if compression_level<1 or compression_level>3:
+            compression_level=1
         self.weightpath=""
-        if self.weights==0:
-            #no model just move images directly to output
-            shutil.copy(self.img_path, self.output_path)
-        elif self.weights==1:
+        if compression_level==1:
             self.weightpath='weights/hific_hi.pt'
-        elif self.weights==2:
+        elif compression_level==2:
             self.weightpath='weights/hific_med.pt'
-        elif self.weights==3:
+        elif compression_level==3:
             self.weightpath='weights/hific_low.pt'
-        print("hello")
         self.model, self.args = prepare_model(self.weightpath, self.logs) #output path is just to make a log
         
     def compress(self):
@@ -126,8 +121,6 @@ class HIFIC:
             img_name=os.path.join(out_path, f"img{i}.png")
             if (vertical+1)*tilesize==height:
                 vertical+=1
-            #elif vertical*tilesize>height:
-            #    vertical-=1
             if horizontal*tilesize>width:
                 horizontal-=1
             Image_splitter.merge_images(tiles=img_gatherer, num_tiles_horizontal=horizontal, num_tiles_vertical=vertical, output_path=img_name, final_res=resolution)
