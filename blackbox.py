@@ -44,6 +44,8 @@ class HIFIC:
                     width, height = img.size
                     if width*height>out_of_memory:
                         tilesize=self.tile_size
+                        #Check if filter is larger than an image dimension
+                        #if so set filter to smallest image dimension
                         if width<self.tile_size or height<self.tile_size:
                             tilesize=min(width,height)
 
@@ -53,7 +55,6 @@ class HIFIC:
                         rig_h=height
                         bot_h=height- (height // tilesize)*tilesize
                         rig_w=width - (width // tilesize)*tilesize
-                        
                         while bot_w*bot_h>out_of_memory or rig_w*rig_h>out_of_memory:
                             tilesize-=50
                             bot_h=height-(height // tilesize)*tilesize
