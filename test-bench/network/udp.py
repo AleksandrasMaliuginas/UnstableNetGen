@@ -2,6 +2,7 @@ import socket
 from typing import Callable
 
 MAX_BUFF_SIZE = 1024 * 1024
+NANOSECOND = 1 / 1_000_000_000
 
 
 class UDPServer:
@@ -10,6 +11,7 @@ class UDPServer:
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         self.messageHandler = requestHandler
+        self.packetsReceived = []
         self.closed = False
 
     def start(self, server_hostname: str, port: int):
@@ -20,11 +22,21 @@ class UDPServer:
 
         while not self.closed:
             message, address = self.server_socket.recvfrom(MAX_BUFF_SIZE)
+            self.packetsReceived.append((message, address))
+
+    def poll(self) -> int:
+        suppliedPacketCount = len(self.packetsReceived)
+
+        while suppliedPacketCount > 0:
+            message, address = self.packetsReceived.pop(0)
+            suppliedPacketCount -= 1
 
             response = self.messageHandler(message)
 
             if response:
                 self.server_socket.sendto(response, address)
+
+        return suppliedPacketCount
 
     def close(self):
         self.closed = True
@@ -51,7 +63,7 @@ class UDPClient:
         except socket.timeout:
             print("Request timed out.")
             return False
-    
+
     def close(self):
         if self.client_socket:
             self.client_socket.close()
