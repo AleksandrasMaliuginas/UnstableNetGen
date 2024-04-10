@@ -16,7 +16,7 @@ class HIFIC:
         self.output_path=output_path
         self.logs=log_path
         self.tile_size = 2100
-        if compression_level>0 and compression_level<3:
+        if compression_level>=0 and compression_level<=3:
             self.weights=compression_level
         else: self.weights=1
         self.weightpath=""
@@ -146,14 +146,20 @@ class HIFIC:
 #A new objects needs to be instantiated each time we need a different compression model, which takes a few seconds, so should be limited.
 #Because of how big the models are, system memory cannot fit more than one (from my tests)
 #Both sides need to instantiate the same model
+
 device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-mycompressor=HIFIC(img_path='pepeimg',output_path='outputimg',log_path='logs', compression_level=1) 
+mycompressor=HIFIC(img_path='pepeimg',output_path='outputimg',log_path='logs', compression_level=3) 
 #mycompressor1=HIFIC(img_path='pepeimg',output_path='outputimg',log_path='logs', compression_level=2) 
 #mycompressor2=HIFIC(img_path='pepeimg',output_path='outputimg',log_path='logs', compression_level=3) 
 #mycompressor1.model.to('cpu')
 #mycompressor2.model.to('cpu')
 #One side will use compress
+import time
+start=time.time()
 resolutions=mycompressor.compress()
+stop=time.time()
+print("compresison time",stop-start)
+exit()
 #The other will use decompress
 mycompressor.decompress(resolutions)
 #When a new model is to be used, use del to remove the previous one from memory
