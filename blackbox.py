@@ -7,6 +7,11 @@ from PIL import Image
 from compress import prepare_model, prepare_dataloader, compress_and_save, load_and_decompress
 import shutil
 import Image_splitter
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "caching_allocator"
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 class HIFIC:
     def __init__(self, img_path, output_path,log_path, compression_level):
         self.prepared='tobecompressed'
@@ -93,27 +98,36 @@ class HIFIC:
         split_imgs=[]
         for root, dirs, files in os.walk(out_path):
             for file_name in files:
-                if "_0_0" in file_name:#file_name.startswith(tile_path):
+                if "_0_0" in file_name:
                     file_count+=1
 
         for i in range(file_count):
             img_gatherer=[]
             horizontal=0
             vertical=0
-            for w in range(10):
-                horizontal_flag=0
-                for h in range(10):
-                    tile_path = f"tile{i}_{w}_{h}_compressed.png"
-                    img_path = os.path.join(out_path, tile_path)   
-                    if os.path.exists(img_path): 
-                        img_gatherer.append(img_path)
-                        if h>vertical:
-                            vertical=h 
-                        horizontal_flag+=1
-                    else:
-                        break
-                if horizontal_flag>0:
+            more_tiles=1
+            while more_tiles:
+                tile_path = f"tile{i}_{horizontal}_{0}_compressed.png"
+                img_path = os.path.join(out_path, tile_path)   
+                if os.path.exists(img_path):
+                    more_vertical=1
+                    v=0
+                    while more_vertical:
+                        tile_path = f"tile{i}_{horizontal}_{v}_compressed.png"
+                        
+                        img_path = os.path.join(out_path, tile_path)   
+                        if os.path.exists(img_path): 
+                            img_gatherer.append(img_path)
+                            if v>vertical:
+                                vertical=v 
+                            v+=1
+                        else: 
+                            more_vertical=0
+                            break
                     horizontal+=1
+                else:
+                    more_tiles=0
+                    break
             resolution=resolutions[i]
             width, height=resolution
             tempimg=Image.open(img_gatherer[0])
@@ -152,8 +166,18 @@ start=time.time()
 resolutions=mycompressor.compress()
 stop=time.time()
 print("compresison time",stop-start)
-exit()
+import csv
+with open('data.csv', 'w', newline='') as f:
+    writer = csv.writer(f)
+    for key, value in resolutions.items():
+        writer.writerow([key, value])
+with open('time.csv', 'w', newline='') as f:
+    writer = csv.writer(f)
+    writer.writerow([stop-start])
 #The other will use decompress
+start=time.time()
 mycompressor.decompress(resolutions)
+stop=time.time()
+print("decompresison time",stop-start)
 #When a new model is to be used, use del to remove the previous one from memory
 del mycompressor
