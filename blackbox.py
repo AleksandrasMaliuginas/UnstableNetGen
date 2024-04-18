@@ -8,6 +8,7 @@ from compress import prepare_model, prepare_dataloader, compress_and_save, load_
 import shutil
 import Image_splitter
 from PIL import ImageFile
+import csv
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "caching_allocator"
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
@@ -59,7 +60,7 @@ class HIFIC:
                             tilesize-=50
                             bot_h=height-(height // tilesize)*tilesize
                             rig_w=width - (width // tilesize)*tilesize
-                        resolutions[split_images] = img.size
+                        resolutions[split_images] = (img.size, str(filename)[:-4]+'_compressed.png')
                         Image_splitter.split_image(file_path, self.prepared, tilesize, split_images)
                         split_images+=1
                     else:
@@ -70,11 +71,17 @@ class HIFIC:
             file_path = os.path.join(self.prepared, file_name)
             if os.path.isfile(file_path):
                 os.remove(file_path)
+        
+        with open('data.csv', 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            for key, (value1, value2) in resolutions.items():
+                writer.writerow([key, value1, value2])
+
         return resolutions
     def get_bpp(self, image_dimensions, num_bytes):
         w, h = image_dimensions
         return num_bytes * 8 / (w * h)
-    def decompress(self, resolutions):
+    def decompress(self):
         File = collections.namedtuple('File', ['output_path', 'compressed_path',
                                        'num_bytes', 'bpp'])
         all_outputs = []
@@ -91,6 +98,16 @@ class HIFIC:
                                     num_bytes=os.path.getsize(compressed_file),
                                     bpp=self.get_bpp(Image.open(output_path).size, os.path.getsize(compressed_file))))
         #Check for how many split images there are:
+        resolutions = {}
+        with open('data.csv', 'r', newline='') as csvfile:
+            reader = csv.reader(csvfile)
+            for row in reader:
+                key = int(row[0])
+                value1 = row[1]
+                value2 = row[2]
+                resolutions[key] = (value1, value2)
+
+
         output_path='outputimg'
         out_path = os.path.join(output_path, output_path)
         file_count=0
@@ -128,16 +145,19 @@ class HIFIC:
                 else:
                     more_tiles=0
                     break
-            resolution=resolutions[i]
-            width, height=resolution
+            resolution, filename=resolutions[i]
+            parts = resolution.split(',')
+            height= int(parts[1][:-1])
+            width = int(parts[0][1:])
             tempimg=Image.open(img_gatherer[0])
             tilesize, notused=tempimg.size
-            img_name=os.path.join(out_path, f"img{i}.png")
+            #img_name=os.path.join(out_path, f"img{i}.png")
+            img_name=os.path.join(out_path, filename)
             if (vertical+1)*tilesize==height:
                 vertical+=1
             if horizontal*tilesize>width:
                 horizontal-=1
-            Image_splitter.merge_images(tiles=img_gatherer, num_tiles_horizontal=horizontal, num_tiles_vertical=vertical, output_path=img_name, final_res=resolution)
+            Image_splitter.merge_images(tiles=img_gatherer, num_tiles_horizontal=horizontal, num_tiles_vertical=vertical, output_path=img_name, final_res=[width, height])
         # List all files in the folder
         files = os.listdir(self.output_path)
         for file_name in files:
@@ -153,7 +173,7 @@ class HIFIC:
 #A new objects needs to be instantiated each time we need a different compression model, which takes a few seconds, so should be limited.
 #Because of how big the models are, system memory cannot fit more than one (from my tests)
 #Both sides need to instantiate the same model
-
+ 
 device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 mycompressor=HIFIC(img_path='pepeimg',output_path='outputimg',log_path='logs', compression_level=3) 
 #mycompressor1=HIFIC(img_path='pepeimg',output_path='outputimg',log_path='logs', compression_level=2) 
@@ -166,17 +186,11 @@ start=time.time()
 resolutions=mycompressor.compress()
 stop=time.time()
 print("compresison time",stop-start)
-import csv
-with open('data.csv', 'w', newline='') as f:
-    writer = csv.writer(f)
-    for key, value in resolutions.items():
-        writer.writerow([key, value])
-with open('time.csv', 'w', newline='') as f:
-    writer = csv.writer(f)
-    writer.writerow([stop-start])
+
 #The other will use decompress
+
 start=time.time()
-mycompressor.decompress(resolutions)
+mycompressor.decompress()
 stop=time.time()
 print("decompresison time",stop-start)
 #When a new model is to be used, use del to remove the previous one from memory
