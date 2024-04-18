@@ -65,6 +65,7 @@ class HIFIC:
                         split_images+=1
                     else:
                         shutil.copy(file_path, self.prepared)
+        
         self.data_loader=prepare_dataloader(self.args, self.prepared, self.output_path)
         compress_and_save(self.model, self.args, self.data_loader, self.output_path)
         for file_name in os.listdir(self.prepared):
@@ -76,7 +77,6 @@ class HIFIC:
             writer = csv.writer(csvfile)
             for key, (value1, value2) in resolutions.items():
                 writer.writerow([key, value1, value2])
-
         return resolutions
     def get_bpp(self, image_dimensions, num_bytes):
         w, h = image_dimensions
