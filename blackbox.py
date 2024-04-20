@@ -9,6 +9,8 @@ import shutil
 import Image_splitter
 from PIL import ImageFile
 import csv
+import time
+import multiprocessing as mp
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "caching_allocator"
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
@@ -35,7 +37,8 @@ class HIFIC:
         
     def compress(self):
         #Checks every given image if it is the correct format and the size of the image, if its too large it iwll be split.
-        out_of_memory=4410000
+        #out_of_memory=4410000
+        out_of_memory=4420000
         resolutions={}
         split_images=0
         for filename in os.listdir(self.img_path):
@@ -82,6 +85,7 @@ class HIFIC:
         w, h = image_dimensions
         return num_bytes * 8 / (w * h)
     def decompress(self):
+        processes=[]
         File = collections.namedtuple('File', ['output_path', 'compressed_path',
                                        'num_bytes', 'bpp'])
         all_outputs = []
@@ -92,7 +96,6 @@ class HIFIC:
 
             # Model decode
             reconstruction = load_and_decompress(self.model, compressed_file, output_path)
-            
             all_outputs.append(File(output_path=self.output_path,
                                     compressed_path=compressed_file,
                                     num_bytes=os.path.getsize(compressed_file),
@@ -157,8 +160,18 @@ class HIFIC:
                 vertical+=1
             if horizontal*tilesize>width:
                 horizontal-=1
-            Image_splitter.merge_images(tiles=img_gatherer, num_tiles_horizontal=horizontal, num_tiles_vertical=vertical, output_path=img_name, final_res=[width, height])
+ 
+            start=time.time()
+            #Image_splitter.merge_images(tiles=img_gatherer, num_tiles_horizontal=horizontal, 
+            #                            num_tiles_vertical=vertical, output_path=img_name, final_res=[width, height])
+            p=mp.Process(target=Image_splitter.merge_images, args=(img_gatherer, horizontal, vertical, img_name, [width, height]))
+            processes.append(p)
+            p.start()
+            stop=time.time()
+            print("merging",stop-start)
         # List all files in the folder
+        for p in processes:
+            p.join()
         files = os.listdir(self.output_path)
         for file_name in files:
             if file_name.endswith(".hfc"):
@@ -175,13 +188,13 @@ class HIFIC:
 #Both sides need to instantiate the same model
  
 device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-mycompressor=HIFIC(img_path='pepeimg',output_path='outputimg',log_path='logs', compression_level=3) 
+mycompressor=HIFIC(img_path='pepeimg',output_path='outputimg',log_path='logs', compression_level=1) 
 #mycompressor1=HIFIC(img_path='pepeimg',output_path='outputimg',log_path='logs', compression_level=2) 
 #mycompressor2=HIFIC(img_path='pepeimg',output_path='outputimg',log_path='logs', compression_level=3) 
 #mycompressor1.model.to('cpu')
 #mycompressor2.model.to('cpu')
 #One side will use compress
-import time
+
 start=time.time()
 resolutions=mycompressor.compress()
 stop=time.time()
