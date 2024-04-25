@@ -10,6 +10,7 @@ import torchvision.transforms.functional as TF
 import os
 from PIL import ImageFile
 import csv
+import cv2
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 # Step 1: Open the image using PIL
 #original_path = "pepeimg/arnold-schwarzenegger-2560x1440.jpg"
@@ -20,7 +21,10 @@ original_path="pepeimg"
 compressed_path="outputimg/outputimg"
 
 
-
+def mse(image1, image2):
+    err = np.sum((image1.astype("float") - image2.astype("float")) ** 2)
+    err /= float(image1.shape[0] * image1.shape[1])
+    return err
 
 SSIM=StructuralSimilarityIndexMeasure(data_range=1,).to('cuda')
 MSSSIM= MultiScaleStructuralSimilarityIndexMeasure(data_range=1).to('cuda')
@@ -30,35 +34,40 @@ filecount=0
 SSIM_sum=0
 MSSSIM_sum=0
 LPIPS_sum=0
-
+MSE_sum=0
 for file_name in os.listdir(original_path):
     filecount+=1
     original = os.path.join(original_path, file_name)
     compressedname=str(file_name)[:-4]+'_compressed.png'
     compressed = os.path.join(compressed_path, compressedname)
-    original =Image.open(original)
-    compressed= Image.open(compressed)
 
-    originalt=TF.to_tensor(original).unsqueeze(0).to('cuda')
-    compressedt=TF.to_tensor(compressed).unsqueeze(0).to('cuda')
-    original.close()
-    compressed.close()
+    original=cv2.imread(original)
+    compressed=cv2.imread(compressed)
+    MSE_sum+=mse(original, compressed)
+    #original =Image.open(original)
+    #compressed= Image.open(compressed)
+
+    #originalt=TF.to_tensor(original).unsqueeze(0).to('cuda')
+    #compressedt=TF.to_tensor(compressed).unsqueeze(0).to('cuda')
+    #original.close()
+    #compressed.close()
     
-    SSIM_sum+=float(SSIM(originalt, compressedt).to('cpu'))
-    MSSSIM_sum+=float(MSSSIM(originalt, compressedt).to('cpu'))
-    LPIPS_sum+=float(LPIPS(originalt,compressedt).to('cpu'))
+    #SSIM_sum+=float(SSIM(originalt, compressedt).to('cpu'))
+    #MSSSIM_sum+=float(MSSSIM(originalt, compressedt).to('cpu'))
+    #LPIPS_sum+=float(LPIPS(originalt,compressedt).to('cpu'))
     
-    del(originalt)
-    del(compressedt)
+    #del(originalt)
+    #del(compressedt)
     print(filecount)
 
 SSIM_sum/=filecount
 MSSSIM_sum/=filecount
 LPIPS_sum/=filecount
-
+MSE_sum/=filecount  
 print(SSIM_sum)
 print(MSSSIM_sum)
 print(LPIPS_sum)  
+print(MSE_sum)
 
 
 

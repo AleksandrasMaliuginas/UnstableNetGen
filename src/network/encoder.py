@@ -53,6 +53,7 @@ class Encoder(nn.Module):
         W1, W2, W3, W4, W5 = widths 
 
         # (256,256) -> (256,256), with implicit padding
+        print(im_channels)
         self.conv_block1 = nn.Sequential(
             self.pre_pad,
             nn.Conv2d(im_channels, filters[0], kernel_size=(7,7), stride=1),
@@ -102,12 +103,19 @@ class Encoder(nn.Module):
         
                 
     def forward(self, x):
+        print(np.shape(x))
         x = self.conv_block1(x)
+        print(np.shape(x))
         x = self.conv_block2(x)
+        print(np.shape(x))
         x = self.conv_block3(x)
+        print(np.shape(x))
         x = self.conv_block4(x)
+        print(np.shape(x))
         x = self.conv_block5(x)
+        print(np.shape(x))
         out = self.conv_block_out(x)
+        print(np.shape(out))
         return out
 
 
