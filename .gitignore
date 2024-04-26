@@ -1,6 +1,10 @@
 #
 .vscode
 
+weights/
+102flowers/
+logs/
+test.py
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -8,7 +12,9 @@ __pycache__/
 
 # C extensions
 *.so
-
+*.png
+*.jpg
+*.hfc
 # Distribution / packaging
 .Python
 build/

@@ -1,0 +1,21 @@
+13:04:53 INFO - logger_setup: /home/henrik/UnstableNet/UnstableNetGen/compress.py
+13:05:00 INFO - load_model: Loading model ...
+13:05:00 INFO - load_model: Estimated model size (under fp32): 593.146 MB
+13:05:00 INFO - load_model: Model init 6.764s
+13:05:00 INFO - prepare_model: Model loaded from disk.
+13:05:00 INFO - prepare_model: Building hyperprior probability tables...
+13:05:04 INFO - prepare_model: All tables built.
+13:05:22 INFO - logger_setup: /home/henrik/UnstableNet/UnstableNetGen/compress.py
+13:05:24 INFO - load_model: Loading model ...
+13:05:24 INFO - load_model: Estimated model size (under fp32): 593.146 MB
+13:05:24 INFO - load_model: Model init 2.937s
+13:05:25 INFO - prepare_model: Model loaded from disk.
+13:05:25 INFO - prepare_model: Building hyperprior probability tables...
+13:05:28 INFO - prepare_model: All tables built.
+13:12:58 INFO - logger_setup: /home/henrik/UnstableNet/UnstableNetGen/compress.py
+13:13:01 INFO - load_model: Loading model ...
+13:13:01 INFO - load_model: Estimated model size (under fp32): 593.146 MB
+13:13:01 INFO - load_model: Model init 3.240s
+13:13:01 INFO - prepare_model: Model loaded from disk.
+13:13:01 INFO - prepare_model: Building hyperprior probability tables...
+13:13:05 INFO - prepare_model: All tables built.
