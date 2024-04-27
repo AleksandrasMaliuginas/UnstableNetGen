@@ -1,27 +1,33 @@
 from PIL import Image
-from infrastructure.middle.receiver import ImageReceiver
-from infrastructure.middle.receiverDuty import ReceiverDuty
+from threading import Thread
 from messaging import MessageType, Ping
+from network.connection import ConnectionProvider
 from network.artificialControl import PacketController
+from infrastructure.middle.receiver import ImageReceiver
 from infrastructure.middle.messageRouter import MessageRouter
 from utils.image import bytesToImage
 
 
 class AccessPoint:
 
-    def __init__(self, server_ip: str, server_port: int):
+    def __init__(self, connectionProvider: ConnectionProvider):
         self.imageReceiver = ImageReceiver(self.onImageReceived)
 
         messageRouter = MessageRouter(self.messageRoutes())
         packetController = PacketController(messageRouter.onPacketReceived)
-        self.receiverDuty = ReceiverDuty("IMAGE_RECEIVER", server_ip, server_port, packetController.onPacketReceived)
+
+        self.server = connectionProvider.getServer(packetController.onPacketReceived)
+        self.receivingServer = Thread(name="SERVER_RECEIVE", target=self.server.listen)
 
     def start(self):
-        self.receiverDuty.start()
+        self.receivingServer.start()
+        self.imagesReceived = 0
 
     def onImageReceived(self, imageBytes: bytes):
         img: Image = bytesToImage(imageBytes)
-        img.show("Received image")
+        # img.show("Received image")
+        self.imagesReceived += 1
+        print("Image received ", self.imagesReceived)
 
     def onPingMessage(self, pingMessage: Ping):
         pingReply = Ping(pingMessage.seq, isReply=True)
@@ -35,12 +41,12 @@ class AccessPoint:
         }
 
     def shutdownBarrier(self):
-        if self.receiverDuty:
+        if self.receivingServer:
             try:
-                self.receiverDuty.join()
+                self.receivingServer.join()
             finally:
                 self.close()
 
     def close(self):
-        if self.receiverDuty:
-            self.receiverDuty.close()
+        if self.server:
+            self.server.close()
