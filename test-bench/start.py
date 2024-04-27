@@ -2,9 +2,10 @@ import sys
 import logging
 from infrastructure.middle import AccessPoint
 from infrastructure.sender import SendingClient
-from compression import NoopEncoder
+from network.connection import Protocol, ConnectionProvider
 
 PORT = 10060
+PROTOCOL = Protocol.TCP
 main_instance = None
 
 
@@ -15,7 +16,8 @@ def main():
     if 2 <= len(sys.argv) <= 3 and sys.argv[1] == "server":
         server_ip = sys.argv[2] if len(sys.argv) > 2 else ""
 
-        main_instance = AccessPoint(server_ip=server_ip, server_port=PORT)
+        connection = ConnectionProvider(server_ip, PORT, PROTOCOL)
+        main_instance = AccessPoint(connection)
         main_instance.start()
 
         print("Access point ready. Accepting connections...")
@@ -24,7 +26,8 @@ def main():
     elif len(sys.argv) == 3 and sys.argv[1] == "client":
         server_ip = sys.argv[2]
 
-        main_instance = SendingClient(server_ip=server_ip, server_port=PORT, encoder=NoopEncoder())
+        connection = ConnectionProvider(server_ip, PORT, PROTOCOL)
+        main_instance = SendingClient(connection)
         main_instance.start()
         main_instance.shutdownBarrier()
 
