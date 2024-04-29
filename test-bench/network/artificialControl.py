@@ -20,11 +20,12 @@ class RandomPacketDrop(PacketDropStrategy):
 class PacketController:
 
     MAX_BYTES_PER_SECOND = 1024 * 1024 * 1024 * 1024
+    UNLIMITED = -1
 
     def __init__(
         self,
         messageHandler: Callable[[bytes], (None | bytes)],
-        receivingRate: int = MAX_BYTES_PER_SECOND,
+        receivingRate: int = UNLIMITED,
         packetDropStrategy: PacketDropStrategy = PacketDropStrategy,
     ):
         self.messageHandler = messageHandler
@@ -42,4 +43,5 @@ class PacketController:
         return self.messageHandler(data)
 
     def throughputAwait(self, bytesReceived: int):
-        time.sleep(float(bytesReceived) / self.desiredBytesPerSecond)
+        if self.desiredBytesPerSecond != -1:
+            time.sleep(float(bytesReceived) / self.desiredBytesPerSecond)
