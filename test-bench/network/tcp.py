@@ -64,7 +64,7 @@ class TCPServer(Server):
         self.server = socketserver.TCPServer((host, port), TCPHandler)
 
     def listen(self):
-        self.server.serve_forever(poll_interval=0.5)
+        self.server.serve_forever(poll_interval=NANOSECOND)
 
     def close(self):
         self.server.shutdown()

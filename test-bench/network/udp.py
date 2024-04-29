@@ -74,7 +74,7 @@ class UDPServer(Server):
 
     def listen(self):
         self.server.max_packet_size = MAX_PACKET_SIZE
-        self.server.serve_forever(poll_interval=0.5)
+        self.server.serve_forever(poll_interval=NANOSECOND)
 
     def close(self):
         self.server.shutdown()
