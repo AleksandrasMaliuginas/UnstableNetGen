@@ -1,13 +1,17 @@
 import time
 import logging
 from enum import Enum
-from compression import Encoder
-from network.udp import UDPClient
-from measurements.connection import ConnectionObserver
-from utils.agent import AgentRunner
+from pathlib import Path
+from messaging import ImageFragment, ImageMetadata, ImageReceived, MessageType
+from network.connection import ConnectionProvider
 from infrastructure.sender.imageSend import ImageSender
-from utils.image import imageToBytes
+from infrastructure.sender.dataset import Size, Dataset
+
+# TODO: move to commons. Cannot depend on middle
+from infrastructure.middle.messageRouter import MessageRouter
+from measurements.connection import ConnectionObserver
 from measurements import AppCounters
+from utils.agent import AgentRunner
 
 log = logging.getLogger()
 
@@ -25,61 +29,140 @@ appCounters = AppCounters(Counters)
 
 class SendingClient:
 
-    def __init__(self, server_ip: str, server_port: int, encoder: Encoder):
+    def __init__(self, connectionProvider: ConnectionProvider):
 
-        self.client = UDPClient(server_ip, server_port, timeoutSeconds=4)
+        self.client = connectionProvider.getClient(timeoutSec=1)
+        self.messageRouter = MessageRouter({MessageType.IMAGE_RECEIVED: self.onImageReceived})
 
         self.imageSender = ImageSender(self.client)
 
-        self.encoder = encoder
+        self.connectionObserver = ConnectionObserver(self.client, measurePeriodSec=1)
+        # self.metricsRunner = AgentRunner("METRICS_OBSERVER", periodicitySec=0.5, agent=self.connectionObserver)
 
-        self.connectionObserver = ConnectionObserver(self.client, measurePeriodSec=2)
-        self.metricsRunner = AgentRunner("METRICS_OBSERVER", periodicitySec=0.5, agent=self.connectionObserver)
+    def start(self):
+        # self.metricsRunner.start()
 
-    def start(self) -> None:
-        self.metricsRunner.start()
-        self.doWork()
+        self.datasetReader = Dataset(Path("../dataset").absolute())
+        connectionQuality = self.connectionObserver.getConnectionQuality()
 
-    def doWork(self):
-        self.connectionObserver.awaitInitialMeasurements()
+        repetitions = 10
+        averageSpeed = 0
+        for i in range(repetitions):
+            averageSpeed += self.connectionObserver.getConnectionQuality().megaBits()
+        
+        print(f"Average: {round(averageSpeed/repetitions, 2)} Mbps")
 
-        imagesToSend = [1]
-        for imageKey in imagesToSend:
-            self.sendImage(imageKey)
+        # self.close()
+        # return
+
+        self.stats()
+        self.datasetReader.readAll(Size.HD_1k, self.sendImage)
+        print(
+            f"{self.imagesReceived} / {self.imagesSent} in "
+            + f"{round(self.totalTimeAcc / self.imagesReceived, 5)} "
+            + f"({round(self.sendingTimeAcc / self.imagesSent, 5)}) "
+        )
+        print(self.imageSizes)
+        print(self.transferTimes)
+        print(self.connectionSpeed)
+        self.stats()
+        self.datasetReader.readAll(Size.HD_2k, self.sendImage)
+        print(
+            f"{self.imagesReceived} / {self.imagesSent} in "
+            + f"{round(self.totalTimeAcc / self.imagesReceived, 5)} "
+            + f"({round(self.sendingTimeAcc / self.imagesSent, 5)}) "
+        )
+        print(self.imageSizes)
+        print(self.transferTimes)
+        print(self.connectionSpeed)
+        self.stats()
+        self.datasetReader.readAll(Size.HD_4k, self.sendImage)
+        print(
+            f"{self.imagesReceived} / {self.imagesSent} in "
+            + f"{round(self.totalTimeAcc / self.imagesReceived, 5)} "
+            + f"({round(self.sendingTimeAcc / self.imagesSent, 5)}) "
+        )
+        print(self.imageSizes)
+        print(self.transferTimes)
+        print(self.connectionSpeed)
+        self.stats()
+        self.datasetReader.readAll(Size.HD_8k, self.sendImage)
+        print(
+            f"{self.imagesReceived} / {self.imagesSent} in "
+            + f"{round(self.totalTimeAcc / self.imagesReceived, 5)} "
+            + f"({round(self.sendingTimeAcc / self.imagesSent, 5)}) "
+        )
+        print(self.imageSizes)
+        print(self.transferTimes)
+        print(self.connectionSpeed)
 
         self.close()
 
-    def sendImage(self, imageKey: int):
+    def stats(self):
+        self.imagesSent = 0
+        self.imagesReceived = 0
 
-        imageBytes = imageToBytes(imageKey)
+        self.sendingTimeAcc = 0
+        self.totalTimeAcc = 0
 
-        appCounters.report(Counters.ImageId, imageKey)
-        appCounters.report(Counters.ImageSizeBytes, len(imageBytes))
+        self.imageSizes = []
+        self.transferTimes = []
+        self.connectionSpeed = []
 
-        connectionQuality = self.connectionObserver.getConnectionQuality()
+    def sendImage(self, imageBytes: bytes):
+        
+        self.imageSendStart = time.time()
+        self.imageSendSize = len(imageBytes)
 
-        startCompression = time.time()
-        encodedImage = self.encoder.encode(imageBytes, connectionQuality)
+        metadata = ImageMetadata(imageLength=len(imageBytes), fragmentLength=len(imageBytes))
+        imageFragment = ImageFragment(sequenceNo=0, fragmentLength=len(imageBytes), fragmentData=imageBytes)
 
-        appCounters.reportDuration(Counters.CompressionDurationSec, startCompression)
-        appCounters.report(Counters.CompressedImageSizeBytes, len(encodedImage))
+        self.client.send(metadata.encode())
+        self.client.send(imageFragment.encode())
 
-        startImageSend = time.time()
-        self.imageSender.sendImage(encodedImage)
+        self.imagesSent += 1
+        self.sendingTimeAcc += time.time() - self.imageSendStart
 
-        appCounters.reportDuration(Counters.ImageSendingTime, startImageSend)
-        log.info(appCounters)
+
+        # Await image received
+        repeat = 3
+        imageReceived = False
+
+        while not imageReceived:
+
+            if repeat <= 0:
+                break
+
+            repeat -= 1
+            imageReceived = self.client.awaitResponse(self.messageRouter.onPacketReceived)
+            
+        time.sleep(0.5)
+
+    def onImageReceived(self, receivedImage: ImageReceived):
+        # print(receivedImage)
+        self.imagesReceived += 1
+        sendDuration = time.time() - self.imageSendStart
+        self.totalTimeAcc += sendDuration
+
+        transferSpeed = round(self.imageSendSize / sendDuration * 8 / 1_000_000, 2)
+        # print("Adjusted*: ", round(self.imageSendSize / sendDuration * 8 / 1_000_000, 2), "Mbps")
+
+        self.imageSizes.append(self.imageSendSize)
+        self.transferTimes = sendDuration
+        self.connectionSpeed.append(transferSpeed)
+        pass
 
     def shutdownBarrier(self):
-        if self.metricsRunner:
-            try:
-                self.metricsRunner.join()
-            finally:
-                self.close()
+        # if self.metricsRunner:
+        #     try:
+        #         self.metricsRunner.join()
+        #     finally:
+        #         self.close()
+        pass
 
     def close(self):
-        if self.metricsRunner:
-            self.metricsRunner.close()
+        # if self.metricsRunner:
+        #     self.metricsRunner.close()
 
         if self.client:
             self.client.close()

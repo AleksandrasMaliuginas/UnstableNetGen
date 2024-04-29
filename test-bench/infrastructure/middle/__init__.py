@@ -1,6 +1,6 @@
 from PIL import Image
 from threading import Thread
-from messaging import MessageType, Ping
+from messaging import MessageType, Ping, ImageReceived
 from network.connection import ConnectionProvider
 from network.artificialControl import PacketController
 from infrastructure.middle.receiver import ImageReceiver
@@ -24,10 +24,12 @@ class AccessPoint:
         self.imagesReceived = 0
 
     def onImageReceived(self, imageBytes: bytes):
+
         img: Image = bytesToImage(imageBytes)
         # img.show("Received image")
         self.imagesReceived += 1
-        print("Image received ", self.imagesReceived)
+        print("Image received ", self.imagesReceived, len(imageBytes))
+        return ImageReceived().encode()
 
     def onPingMessage(self, pingMessage: Ping):
         pingReply = Ping(pingMessage.seq, isReply=True)

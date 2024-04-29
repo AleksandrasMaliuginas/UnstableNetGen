@@ -24,6 +24,9 @@ class ConnectionQuality:
 
     def dataTransferRateBytesPerSecond(self) -> float:
         return round(self.bytesReceived / self.totalRoundTripTime, 2)
+    
+    def megaBits(self) -> float:
+        return round(self.bytesReceived / self.totalRoundTripTime * 8 / 1_000_000, 2)
 
     def roundTripTimeMs(self, precision: int = 2) -> float:
         return round(1000 * self.totalRoundTripTime / self.replyPacketCount, precision)
@@ -31,6 +34,7 @@ class ConnectionQuality:
     def __str__(self):
         return (
             f"{self.__class__.__name__}: "
+            + f"megaBits={self.megaBits()}; "
             + f"requestPacketCount={self.requestPacketCount}; "
             + f"replyPacketCount={self.replyPacketCount}; "
             + f"bytesReceived={self.bytesReceived}; "
@@ -61,8 +65,8 @@ class ConnectionObserver(Agent):
         self.client = client
         self.measurePeriodSec = measurePeriodSec
         self.lastMeasurement = -1
-        self.pingPeriod = 0.5
-        self.pingRepetitions = 10
+        self.pingPeriod = 0.1
+        self.pingRepetitions = 1000
 
         self.connectionQuality = None
         self.records = {}
@@ -76,7 +80,8 @@ class ConnectionObserver(Agent):
             appCounters.report(
                 Counters.DataTransferRateBytesPerSecond, self.connectionQuality.dataTransferRateBytesPerSecond()
             )
-            log.info(appCounters)
+            # log.info(appCounters)
+            log.info(self.connectionQuality)
 
     def isTimeToMeasure(self) -> bool:
         return time.time() > self.lastMeasurement + self.measurePeriodSec
@@ -90,6 +95,7 @@ class ConnectionObserver(Agent):
 
     # TODO: Not thread safe
     def getConnectionQuality(self) -> ConnectionQuality:
+        self.measureConnectionQuality()
         return self.connectionQuality
 
     def measureConnectionQuality(self):
@@ -136,8 +142,9 @@ class ConnectionObserver(Agent):
         if pingReply.msgType != MessageType.PING or pingReply.type != Ping.REPLY:
             return
 
-        request, start, _ = self.records[pingReply.seq]
-
-        self.records[pingReply.seq] = (request, start, end)
+        if pingReply.seq in self.records:
+            request, start, _ = self.records[pingReply.seq]
+            self.records[pingReply.seq] = (request, start, end)
+        
 
         # print(f"{len(message)} bytes: ping_seq={pingReply.seq} time={roundTripDurationMs} ms")

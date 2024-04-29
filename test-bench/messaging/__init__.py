@@ -6,7 +6,8 @@ class MessageType(Enum):
     INVALID = -1
     PING = 0
     IMAGE_METADATA = 1
-    IMAGE_FRAGMENT = 2
+    IMAGE_RECEIVED = 2
+    IMAGE_FRAGMENT = 3
 
 
 class Message:
@@ -42,6 +43,9 @@ class Message:
 
         if msgTypeId == MessageType.IMAGE_FRAGMENT.value:
             return ImageFragment.decode(buffer=buffer[2:])
+        
+        if msgTypeId == MessageType.IMAGE_RECEIVED.value:
+            return ImageReceived.decode(buffer=buffer[2:])
 
         return Message(msgTypeId)
 
@@ -90,6 +94,25 @@ class ImageFragment(Message):
 
         return ImageFragment(sequenceNo, fragmentLength, buffer[HEADER_SIZE:])
 
+class ImageReceived(Message):
+
+    def __init__(self):
+        super().__init__(MessageType.IMAGE_RECEIVED)
+        # self.imageLength = imageLength
+        # self.fragmentLength = fragmentLength
+        # requestId, imageSize, encoderId, imageId ?
+
+    def __str__(self):
+        return super().__str__() + f" Wooooooow "
+
+    def encode(self):
+        return super().encode() #+ pack(">x")
+
+    @staticmethod
+    def decode(buffer: bytes):
+        # imageLength, fragmentLength = unpack(">LL", buffer)
+
+        return ImageReceived()
 
 class Ping(Message):
 

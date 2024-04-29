@@ -1,3 +1,4 @@
+import time
 from typing import Callable
 from messaging import ImageFragment, ImageMetadata
 
@@ -5,14 +6,25 @@ from messaging import ImageFragment, ImageMetadata
 class ImageReceiver:
     def __init__(self, imageHandler: Callable[[bytes], None]):
         self.imageHandler = imageHandler
-        self.reset()
+        
+        self.bytesReceived = bytes()
+        self.actingImageMetadata = None
+        self.start = time.time()
+        self.end = None
 
     def reset(self):
         self.bytesReceived = bytes()
         self.actingImageMetadata = None
 
+        # if not self.end:
+        #     print("Image was not received.")
+        # else:
+        #     print(self.end - self.start)
+
+        self.start = time.time()
+        self.end = None
+
     def onImageMetadata(self, imageMetadata: ImageMetadata):
-        print(imageMetadata)
         self.reset()
         self.actingImageMetadata = imageMetadata
 
@@ -24,4 +36,6 @@ class ImageReceiver:
         self.bytesReceived += imageFragment.fragmentData
 
         if self.actingImageMetadata.imageLength == len(self.bytesReceived):
-            self.imageHandler(self.bytesReceived)
+            return self.imageHandler(self.bytesReceived)
+            # self.end = time.time()
+            
