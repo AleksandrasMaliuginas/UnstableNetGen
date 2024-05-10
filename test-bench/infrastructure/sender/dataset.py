@@ -1,3 +1,4 @@
+import csv
 import os
 import io
 import json
@@ -9,18 +10,68 @@ from typing import Callable, Tuple
 ORIGINAL = "original"
 COMPRESSED = "compressed"
 ImageFile.LOAD_TRUNCATED_IMAGES = True
+baseDatasetDirectory = ""
+compressionToImages = {}
 
-class Size(Enum):
+
+class Resolution(Enum):
+    S_256 = "256x256"
+    S_480 = "640x480"
+    S_720 = "1280x720"
     HD_1k = "1920x1080"
     HD_2k = "2560x1440"
     HD_4k = "3840x2160"
     HD_8k = "7680x4320"
 
+
 class CompressionLevel(Enum):
-    NONE = "uncompressed"
+    NONE = "original"
     LOW = "HiFiC low"
-    MEDIUM = "HiFiC med"
+    MEDIUM = "HiFiC medium"
     HIGH = "HiFiC high"
+
+
+class DatasetImage:
+
+    def __init__(self, filename: str, compression: CompressionLevel = CompressionLevel.NONE):
+        self.filename = filename
+        self.compression = compression
+
+        self.__readFiles()
+
+    def __readFiles(self):
+        global baseDatasetDirectory
+        global compressionToImages
+
+        self.imageTiles = []
+        self.totalImageSize = 0
+
+        fileDir = Path(baseDatasetDirectory, self.compression.value)
+
+        if self.compression == CompressionLevel.NONE:
+            path = Path(fileDir, f"{self.filename}.jpg")
+            self.__readFile(path)
+            return
+
+        # Compressed  less than 2k
+        if not Resolution.HD_4k.value in self.filename and not Resolution.HD_8k.value in self.filename:
+            path = Path(fileDir, f"{self.filename}_compressed.hfc")
+            self.__readFile(path)
+            return
+
+        # Compressed high resolution
+        imageId = compressionToImages[self.compression][self.filename]
+
+        for path in Path(fileDir).glob(f"tile{imageId}*.*"):
+            self.__readFile(path)
+
+        return
+
+    def __readFile(self, path: Path | str):
+        with open(path, "rb") as file:
+            fileBytes = file.read()
+            self.imageTiles.append((file.name.split("/")[-1], fileBytes))
+            self.totalImageSize += len(fileBytes)
 
 
 class Dataset:
@@ -28,22 +79,67 @@ class Dataset:
     def __init__(self, datasetPath: Path):
         self.datasetPath = datasetPath
         self.buildIndex()
+        self.setCompressedResolver()
 
-    def readAll(self, imageSize: Size, imageConsumer: Callable[[bytes], None], compression: CompressionLevel = CompressionLevel.NONE):
+    def readAll(
+        self,
+        imageConsumer: Callable[[DatasetImage], None],
+        resolution: Resolution = None,
+        compression: CompressionLevel = CompressionLevel.NONE,
+    ):
         # limit = 3
 
-        for imageName in self.imageNames:
-            path = Path(self.baseDatasetDirectory, f"{imageName}-{imageSize.value}.jpg")
-            
-            imageBytes = self.imageToBytes(path)
+        for filename in self.images:
 
-            if imageBytes:
-                imageConsumer(imageBytes)
+            if resolution != None and not resolution.value in filename:
+                continue
+
+            datasetImage = DatasetImage(filename, compression)
+            imageConsumer(datasetImage)
 
             # limit -= 1
             # if limit == 0:
             #     break
-            
+
+    def buildIndex(self):
+        global baseDatasetDirectory
+        baseDatasetDirectory = self.datasetPath
+
+        self.images = set()
+        self.imageSizes = set()
+
+        originalImagePaths = Path(self.datasetPath, "original").glob("*.*")
+
+        for path in originalImagePaths:
+            self.baseDatasetDirectory = "/".join(str(path).split("/")[:-1])
+
+            filename = str(path).split("/")[-1]
+            filenameWithoutExtension = filename.split(".")[0]
+
+            self.images.add(filenameWithoutExtension)
+
+    def setCompressedResolver(self):
+        global baseDatasetDirectory
+        global compressionToImages
+
+        compressionToImages[CompressionLevel.LOW] = {}
+        compressionToImages[CompressionLevel.MEDIUM] = {}
+        compressionToImages[CompressionLevel.HIGH] = {}
+
+        for compressionLevel in CompressionLevel:
+            if compressionLevel == CompressionLevel.NONE:
+                continue
+
+            imageToId = compressionToImages[compressionLevel]
+
+            with open(Path(baseDatasetDirectory, compressionLevel.value, "data.csv"), newline="") as file:
+                reader = csv.reader(file, delimiter=",", quotechar='"')
+                for row in reader:
+                    imageId = row[0]
+                    imageFilename = row[-1].replace("_compressed.png", "")
+                    imageToId[imageFilename] = int(imageId)
+
+        # print(compressionToImages)
 
     @staticmethod
     def imageToBytes(image_path: Path) -> bytes | None:
@@ -55,41 +151,12 @@ class Dataset:
         image = Image.open(image_path, mode="r")
 
         return Dataset.imageToByteArray(image)
-    
+
     @staticmethod
     def imageToByteArray(image: Image) -> bytes:
         imgByteArr = io.BytesIO()
         image.save(imgByteArr, format=image.format)
         return imgByteArr.getvalue()
-
-    def buildIndex(self):
-        self.imageSizes = set()
-        self.images = {}
-        self.imageNames = set()
-
-        originalImagePaths = Path(self.datasetPath, ORIGINAL).glob("*.*")
-
-        for path in originalImagePaths:
-            self.baseDatasetDirectory = "/".join(str(path).split("/")[:-1])
-
-            filename = str(path).split("/")[-1]
-
-            nameParts = filename.split("-")
-            imageKey = "-".join(nameParts[0:-1])
-
-            imageSize = nameParts[-1].split(".")[0]
-            imageDimensions = [int(x) for x in imageSize.split("x")]
-            # print(imageKey, imageSize, imageDimensions)
-
-            self.imageNames.add(imageKey)
-
-            self.imageSizes.add(imageSize)
-            imageList: list = appendIfAbsent(self.images, imageKey, lambda key: [])
-            imageList.append(filename)
-
-
-def newImage(filename: str, imageSize: Tuple[int]):
-    return {"filename": filename, "imageSize": imageSize}
 
 
 def appendIfAbsent(targetDict: dict, entryKey: str, computeFunction: Callable[[str], dict]):
@@ -97,12 +164,3 @@ def appendIfAbsent(targetDict: dict, entryKey: str, computeFunction: Callable[[s
         targetDict[entryKey] = computeFunction(entryKey)
 
     return targetDict[entryKey]
-
-
-if __name__ == "__main__":
-
-    imageSupplier = Dataset()
-
-    print(imageSupplier.imageSizes)
-    output = json.dumps(imageSupplier.images, indent=2)
-    print(output)
