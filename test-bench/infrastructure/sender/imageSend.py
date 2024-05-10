@@ -19,11 +19,11 @@ class ImageSender:
         self.sendImageFragments(imageMetadata=metadata, imageBytes=imageBytes)
 
     def imageMetadata(self, imageBytes: bytes):
-        return ImageMetadata(imageLength=len(imageBytes), fragmentLength=self.fragmentSize)
+        return ImageMetadata(imageLength=len(imageBytes), fragmentCount=self.fragmentSize)
 
     def sendImageFragments(self, imageMetadata: ImageMetadata, imageBytes: bytes):
         totalLength = imageMetadata.imageLength
-        fragmentLength = imageMetadata.fragmentLength
+        fragmentLength = imageMetadata.fragmentCount
 
         offset = 0
         sequenceNo = 0
