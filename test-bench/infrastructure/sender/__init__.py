@@ -5,7 +5,7 @@ from pathlib import Path
 from messaging import ImageFragment, ImageMetadata, ImageReceived, MessageType
 from network.connection import ConnectionProvider
 from infrastructure.sender.imageSend import ImageSender
-from infrastructure.sender.dataset import Size, Dataset
+from infrastructure.sender.dataset import CompressionLevel, DatasetImage, Resolution, Dataset
 
 # TODO: move to commons. Cannot depend on middle
 from infrastructure.middle.messageRouter import MessageRouter
@@ -31,7 +31,7 @@ class SendingClient:
 
     def __init__(self, connectionProvider: ConnectionProvider):
 
-        self.client = connectionProvider.getClient(timeoutSec=1)
+        self.client = connectionProvider.getClient(timeoutSec=10)
         self.messageRouter = MessageRouter({MessageType.IMAGE_RECEIVED: self.onImageReceived})
 
         self.imageSender = ImageSender(self.client)
@@ -39,90 +39,62 @@ class SendingClient:
         self.connectionObserver = ConnectionObserver(self.client, measurePeriodSec=1)
         # self.metricsRunner = AgentRunner("METRICS_OBSERVER", periodicitySec=0.5, agent=self.connectionObserver)
 
+        self.dataset = Dataset(Path("../dataset/external").absolute())
+
     def start(self):
-        # self.metricsRunner.start()
+        self.connectionObserver.measureRSSI()
 
-        self.datasetReader = Dataset(Path("../dataset").absolute())
-        connectionQuality = self.connectionObserver.getConnectionQuality()
+        # print(f"RSSI; LinkQuality; Bytes transferred; RTT; Derived speed MBps")  # throughput; latency
+        # for i in range(10):
+        #     connectionQuality = self.connectionObserver.getConnectionQuality()
+        #     print(
+        #         f"{self.connectionObserver.signalLevel}; {self.connectionObserver.linkQuality}; {connectionQuality.bytesTransferred}; {connectionQuality.roundTripTimeSec()}; {connectionQuality.dataTransferRateMBps()}"
+        #     )
 
-        repetitions = 10
-        averageSpeed = 0
-        for i in range(repetitions):
-            averageSpeed += self.connectionObserver.getConnectionQuality().megaBits()
+        self.imagesReceived = 0
+        compressionLevel = CompressionLevel.NONE
+
+        for res in Resolution:
+            # print(res)
+            self.dataset.readAll(self.sendImage, resolution=res, compression=compressionLevel)
         
-        print(f"Average: {round(averageSpeed/repetitions, 2)} Mbps")
-
-        # self.close()
-        # return
-
-        self.stats()
-        self.datasetReader.readAll(Size.HD_1k, self.sendImage)
-        print(
-            f"{self.imagesReceived} / {self.imagesSent} in "
-            + f"{round(self.totalTimeAcc / self.imagesReceived, 5)} "
-            + f"({round(self.sendingTimeAcc / self.imagesSent, 5)}) "
-        )
-        print(self.imageSizes)
-        print(self.transferTimes)
-        print(self.connectionSpeed)
-        self.stats()
-        self.datasetReader.readAll(Size.HD_2k, self.sendImage)
-        print(
-            f"{self.imagesReceived} / {self.imagesSent} in "
-            + f"{round(self.totalTimeAcc / self.imagesReceived, 5)} "
-            + f"({round(self.sendingTimeAcc / self.imagesSent, 5)}) "
-        )
-        print(self.imageSizes)
-        print(self.transferTimes)
-        print(self.connectionSpeed)
-        self.stats()
-        self.datasetReader.readAll(Size.HD_4k, self.sendImage)
-        print(
-            f"{self.imagesReceived} / {self.imagesSent} in "
-            + f"{round(self.totalTimeAcc / self.imagesReceived, 5)} "
-            + f"({round(self.sendingTimeAcc / self.imagesSent, 5)}) "
-        )
-        print(self.imageSizes)
-        print(self.transferTimes)
-        print(self.connectionSpeed)
-        self.stats()
-        self.datasetReader.readAll(Size.HD_8k, self.sendImage)
-        print(
-            f"{self.imagesReceived} / {self.imagesSent} in "
-            + f"{round(self.totalTimeAcc / self.imagesReceived, 5)} "
-            + f"({round(self.sendingTimeAcc / self.imagesSent, 5)}) "
-        )
-        print(self.imageSizes)
-        print(self.transferTimes)
-        print(self.connectionSpeed)
 
         self.close()
 
-    def stats(self):
-        self.imagesSent = 0
-        self.imagesReceived = 0
+    def sendImage(self, datasetImage: DatasetImage):
 
-        self.sendingTimeAcc = 0
-        self.totalTimeAcc = 0
+        fragments = datasetImage.imageTiles
+        metadata = ImageMetadata(imageLength=datasetImage.totalImageSize, fragmentCount=len(fragments))
+        metadataEncoded = metadata.encode()
 
-        self.imageSizes = []
-        self.transferTimes = []
-        self.connectionSpeed = []
+        self.connectionObserver.measureRSSI()
 
-    def sendImage(self, imageBytes: bytes):
-        
-        self.imageSendStart = time.time()
-        self.imageSendSize = len(imageBytes)
+        #             Image name           ; Compression Level            ; Total image in bytes;
+        self.stats = [datasetImage.filename, datasetImage.compression.name, datasetImage.totalImageSize]
+        #              Sygnal level dBm                   ; Link quality from iwconfig (x/70)
+        self.stats += [self.connectionObserver.signalLevel, self.connectionObserver.linkQuality]
 
-        metadata = ImageMetadata(imageLength=len(imageBytes), fragmentLength=len(imageBytes))
-        imageFragment = ImageFragment(sequenceNo=0, fragmentLength=len(imageBytes), fragmentData=imageBytes)
+        self.sendStart = time.time()
+        self.imageBytesSent = 0
+        self.bytesTransferred = len(metadataEncoded)
 
-        self.client.send(metadata.encode())
-        self.client.send(imageFragment.encode())
+        self.client.send(metadataEncoded)
 
-        self.imagesSent += 1
-        self.sendingTimeAcc += time.time() - self.imageSendStart
+        # Send images fragments (or aka tiles)
+        seqNo = 0
+        for imageFragment in fragments:
+            fragmentName, fragmentBytes = imageFragment
+            fragment = ImageFragment(sequenceNo=seqNo, fragmentLength=len(fragmentBytes), fragmentData=fragmentBytes)
+            fragmentEncoded = fragment.encode()
+            seqNo += 1
 
+            self.client.send(fragmentEncoded)
+
+            self.imageBytesSent += len(fragmentBytes)
+            self.bytesTransferred += len(fragmentEncoded)
+
+        if self.imageBytesSent != datasetImage.totalImageSize:
+            print("ERROR: bytes sent does not match.")
 
         # Await image received
         repeat = 3
@@ -135,34 +107,34 @@ class SendingClient:
 
             repeat -= 1
             imageReceived = self.client.awaitResponse(self.messageRouter.onPacketReceived)
-            
-        time.sleep(0.5)
 
-    def onImageReceived(self, receivedImage: ImageReceived):
-        # print(receivedImage)
+        if not imageReceived:
+            pass
+
+        time.sleep(1)
+
+        print("; ".join([str(val) for val in self.stats]))
+
+    def onImageReceived(self, imageReceived: ImageReceived):
+
         self.imagesReceived += 1
-        sendDuration = time.time() - self.imageSendStart
-        self.totalTimeAcc += sendDuration
+        sendDuration = time.time() - self.sendStart
+        transferRateBps = self.bytesTransferred / sendDuration
 
-        transferSpeed = round(self.imageSendSize / sendDuration * 8 / 1_000_000, 2)
-        # print("Adjusted*: ", round(self.imageSendSize / sendDuration * 8 / 1_000_000, 2), "Mbps")
-
-        self.imageSizes.append(self.imageSendSize)
-        self.transferTimes = sendDuration
-        self.connectionSpeed.append(transferSpeed)
-        pass
+        #              Bytes transferred    ; Transfer time ; Derived link speed MBps
+        self.stats += [self.bytesTransferred, sendDuration, round(transferRateBps / 1_000_000, 5)]
 
     def shutdownBarrier(self):
-        # if self.metricsRunner:
-        #     try:
-        #         self.metricsRunner.join()
-        #     finally:
-        #         self.close()
+        if self.metricsRunner:
+            try:
+                self.metricsRunner.join()
+            finally:
+                self.close()
         pass
 
     def close(self):
-        # if self.metricsRunner:
-        #     self.metricsRunner.close()
+        if self.metricsRunner:
+            self.metricsRunner.close()
 
         if self.client:
             self.client.close()

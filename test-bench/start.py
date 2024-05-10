@@ -5,7 +5,7 @@ from infrastructure.sender import SendingClient
 from network.connection import Protocol, ConnectionProvider
 
 PORT = 10060
-PROTOCOL = Protocol.UDP
+PROTOCOL = Protocol.TCP
 main_instance = None
 
 

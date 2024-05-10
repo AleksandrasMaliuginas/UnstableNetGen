@@ -5,8 +5,6 @@ from network.connection import ConnectionProvider
 from network.artificialControl import PacketController
 from infrastructure.middle.receiver import ImageReceiver
 from infrastructure.middle.messageRouter import MessageRouter
-from utils.image import bytesToImage
-
 
 class AccessPoint:
 
@@ -25,7 +23,7 @@ class AccessPoint:
 
     def onImageReceived(self, imageBytes: bytes):
 
-        img: Image = bytesToImage(imageBytes)
+        # img: Image = bytesToImage(imageBytes)
         # img.show("Received image")
         self.imagesReceived += 1
         print("Image received ", self.imagesReceived, len(imageBytes))
