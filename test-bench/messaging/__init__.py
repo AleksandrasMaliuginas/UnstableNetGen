@@ -52,23 +52,23 @@ class Message:
 
 class ImageMetadata(Message):
 
-    def __init__(self, imageLength: int, fragmentLength: int):
+    def __init__(self, imageLength: int, fragmentCount: int):
         super().__init__(MessageType.IMAGE_METADATA)
         self.imageLength = imageLength
-        self.fragmentLength = fragmentLength
+        self.fragmentCount = fragmentCount
         # requestId, imageSize, encoderId, imageId ?
 
     def __str__(self):
-        return super().__str__() + f" imageLength={self.imageLength} fragmentLength={self.fragmentLength}"
+        return super().__str__() + f" imageLength={self.imageLength} fragmentCount={self.fragmentCount}"
 
     def encode(self):
-        return super().encode() + pack(">LL", self.imageLength, self.fragmentLength)
+        return super().encode() + pack(">LL", self.imageLength, self.fragmentCount)
 
     @staticmethod
     def decode(buffer: bytes):
-        imageLength, fragmentLength = unpack(">LL", buffer)
+        imageLength, fragmentCount = unpack(">LL", buffer)
 
-        return ImageMetadata(imageLength, fragmentLength)
+        return ImageMetadata(imageLength, fragmentCount)
 
 
 class ImageFragment(Message):
