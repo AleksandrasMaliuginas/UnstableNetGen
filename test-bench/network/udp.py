@@ -113,7 +113,7 @@ class UDPClient(Client):
             responseHandler(response)
             return True
         except socket.timeout:
-            print("Request timed out.")
+            # print("Request timed out.")
             return False
 
     def close(self):

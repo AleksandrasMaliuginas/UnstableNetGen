@@ -88,7 +88,13 @@ class TCPClient(Client):
             self.connected = True
 
         header = pack(">xxLxx", len(data))
-        self.socket.sendall(header + data)
+
+        try:
+            self.socket.sendall(header + data)
+            return True
+        except TimeoutError:
+            print("Socket timeout.: TCP.sendall()")
+            return False
 
     def awaitResponse(self, responseHandler: Callable[[bytes], None]) -> bool:
         try:
@@ -96,10 +102,10 @@ class TCPClient(Client):
             responseHandler(response)
             return True
         except socket.timeout:
-            print("Request timed out.")
+            # print("Request timed out.")
             return False
 
     def close(self):
-        self.socket.shutdown(socket.SHUT_WR)
+        # self.socket.shutdown(socket.SHUT_WR)
         self.connected = False
         self.socket.close()
