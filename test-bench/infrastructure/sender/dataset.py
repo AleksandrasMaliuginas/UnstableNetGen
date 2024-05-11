@@ -62,7 +62,7 @@ class DatasetImage:
         # Compressed high resolution
         imageId = compressionToImages[self.compression][self.filename]
 
-        for path in Path(fileDir).glob(f"tile{imageId}*.*"):
+        for path in Path(fileDir).glob(f"tile{imageId}_*.*"):
             self.__readFile(path)
 
         return
