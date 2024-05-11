@@ -22,7 +22,7 @@ class Client(ABC):
         """Blocking send bytes to socket."""
 
     @abstractmethod
-    def awaitResponse(self, responseHandler: Callable[[bytes], None]) -> bool:
+    def awaitResponse(self, responseHandler: Callable[[bytes], None], timeout: int = 1) -> bool:
         """Blocking await for server response.
         Can be called from different thread.
         """

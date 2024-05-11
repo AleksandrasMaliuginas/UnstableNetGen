@@ -76,6 +76,7 @@ class TCPClient(Client):
 
     def __init__(self, host: str, port: int, timeout: int = 1) -> None:
         self.address = (host, port)
+        self.timeout = timeout
 
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.settimeout(timeout)
@@ -96,14 +97,17 @@ class TCPClient(Client):
             print("Socket timeout.: TCP.sendall()")
             return False
 
-    def awaitResponse(self, responseHandler: Callable[[bytes], None]) -> bool:
+    def awaitResponse(self, responseHandler: Callable[[bytes], None], timeout: int = 1) -> bool:
+        self.socket.settimeout(timeout)
         try:
             response, address = self.socket.recvfrom(1024 * 1024)
             responseHandler(response)
             return True
         except socket.timeout:
-            # print("Request timed out.")
+            print(f"Socket timeout.: TCP.recv() {self.socket.gettimeout()}")
             return False
+        finally:
+            self.socket.settimeout(self.timeout)
 
     def close(self):
         # self.socket.shutdown(socket.SHUT_WR)
